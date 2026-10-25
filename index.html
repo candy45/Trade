@@ -150,6 +150,10 @@ input[type=range]::-webkit-slider-thumb{
 .tag.buy{background:rgba(255,77,79,.18);color:#ff8b8d;border:1px solid rgba(255,77,79,.3)}
 .tag.sell{background:rgba(38,166,91,.18);color:#5ed48c;border:1px solid rgba(38,166,91,.3)}
 .tag.n{background:var(--card);color:var(--txt3);border:1px solid var(--line)}
+.tag.typ{background:rgba(74,158,255,.14);border:1px solid rgba(74,158,255,.32);color:#8ec4ff}
+.tag.typ.t-etf{background:rgba(160,120,255,.14);border-color:rgba(160,120,255,.32);color:#c0a5ff}
+.tag.typ.t-ifut{background:rgba(240,160,32,.14);border-color:rgba(240,160,32,.35);color:#f5c168}
+.tag.typ.t-cfut{background:rgba(38,190,180,.13);border-color:rgba(38,190,180,.3);color:#5fd8cc}
 .tag.win{background:rgba(255,77,79,.18);color:#ff8b8d;border:1px solid rgba(255,77,79,.3)}
 .tag.loss{background:rgba(38,166,91,.18);color:#5ed48c;border:1px solid rgba(38,166,91,.3)}
 .empty{text-align:center;color:var(--txt3);padding:28px 10px;font-size:13.5px}
@@ -357,6 +361,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
         <label class="f">市场结论</label>
         <textarea id="r_concl" placeholder="今天赚钱效应如何？亏钱效应从哪里来？明天要紧的是什么？"></textarea>
       </div>
+      <div class="field">
+        <label class="f">其他市场备注（ETF / 期货）</label>
+        <textarea id="r_other" placeholder="期现基差、股指期货贴水、商品夜盘、ETF折溢价等" style="min-height:52px"></textarea>
+      </div>
     </div>
 
     <div class="card">
@@ -432,7 +440,20 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
         <div class="field" style="margin:0"><label class="f">结束</label><input type="date" id="s_to"></div>
         <button class="btn ghost" style="align-self:flex-end;margin-bottom:12px" onclick="clearRange()">重置</button>
       </div>
+      <div class="field" style="margin-bottom:12px"><label class="f">品种筛选</label>
+        <div class="chips" id="s_itype">
+          <div class="chip on" data-v="全部">全部</div>
+          <div class="chip" data-v="股票">股票</div>
+          <div class="chip" data-v="ETF">ETF</div>
+          <div class="chip" data-v="股指期货">股指期货</div>
+          <div class="chip" data-v="商品期货">商品期货</div>
+        </div>
+      </div>
       <div class="kpis" id="statKpis"></div>
+    </div>
+    <div class="card">
+      <div class="card-t"><span class="bar"></span>分品种统计</div>
+      <div id="typeStats"></div>
     </div>
     <div class="card">
       <div class="card-t"><span class="bar"></span>纪律分数趋势（近 14 次）</div>
@@ -495,7 +516,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="hint" style="margin-top:10px">
         数据来自腾讯行情公开接口（qt.gtimg.cn），无需密钥。<br>
         · <b>指数与成交额</b>：上证 / 创业板指 / 深证成指涨跌幅 + 两市成交额（沪市 + 深市自动相加）<br>
-        · <b>持仓与关注标的</b>：按代码自动刷新现价，浮盈实时重算<br>
+        · <b>持仓与关注标的</b>：股票 / ETF 按代码自动刷新现价，浮盈实时重算；<b>期货无公开接口，请手动填价</b>（盈亏按乘数与多空方向自动折算）<br>
+        · 指数面板附沪深300 / 中证500 / 中证1000，即 IF / IC / IM 股指期货标的<br>
         · 该接口只提供<b>当前最新价</b>，无法回补历史某天的收盘数据，历史日期请手动填。<br>
         · 本机直连外网，数据不经过任何第三方服务器。
       </div>
@@ -618,6 +640,39 @@ function setRange(el){
 }
 function blank(v){ return v===undefined || v===null || String(v).trim()===''; }
 
+/* ---------- 品种（股票/ETF/股指期货/商品期货） ---------- */
+const ITYPES = ['股票','ETF','股指期货','商品期货'];
+function isFut(t){ return t==='股指期货' || t==='商品期货'; }
+function itypeOf(x){ return (x && x.itype) ? x.itype : '股票'; }
+function typeTag(t){
+  const map = {'股票':'t-stock','ETF':'t-etf','股指期货':'t-ifut','商品期货':'t-cfut'};
+  return `<span class="tag typ ${map[t]||'t-stock'}">${esc(t)}</span>`;
+}
+function sideClass(s){ return (s==='买入'||s==='开多'||s==='平空'||s==='做多') ? 'buy' : 'sell'; }
+/* 期货盈亏：(平/现价 − 开仓价) × 手数 × 乘数，空单取反 */
+function futPnl(openPx, closePx, qty, mult, dir2){
+  const d = (num(closePx) - num(openPx)) * num(qty) * (num(mult)||1);
+  return dir2==='空' ? -d : d;
+}
+/* 持仓浮盈（统一入口，期货按乘数与方向折算） */
+function holdPnl(h){
+  const c = num(h.cost), p = num(h.price);
+  if(!p || !c) return null;
+  const m = isFut(itypeOf(h)) ? (num(h.mult)||1) : 1;
+  const d = (p - c) * num(h.qty) * m;
+  return h.dir2==='空' ? -d : d;
+}
+/* 品种chips点击后的联动（显示/隐藏期货字段等） */
+function bindTypeToggle(typeId, onChange){
+  const root = $(typeId);
+  if(!root) return;
+  root.addEventListener('click', e=>{
+    const c = e.target.closest('.chip');
+    if(!c) return;
+    setTimeout(()=>onChange(chipGet(typeId)), 0);
+  });
+}
+
 /* ------------- Chip groups ------------- */
 function chipInit(rootId, multi){
   const root = $(rootId);
@@ -709,13 +764,14 @@ function renderPre(){
       const chgHtml = (chg!==undefined && chg!==null && chg!=='')
         ? `<span class="${cls(num(chg))}" style="font-weight:600">${w.price} <span style="font-size:12px">${pct(chg)}</span></span>`
         : '';
+      const dirCls = (w.dir==='买入'||w.dir==='做多') ? 'buy' : (w.dir==='观察' ? 'n' : 'sell');
       return `
       <div class="list-item">
         <div class="li-head">
+          ${typeTag(itypeOf(w))}
           <span class="li-title">${esc(w.name)}</span>
           <span class="tag n">${esc(w.code||'')}</span>
-          ${w.dir?`<span class="tag ${w.dir==='买入'?'buy':'sell'}">${esc(w.dir)}</span>`:''}
-          ${w.plan?`<span class="tag n">${esc(w.plan)}</span>`:''}
+          ${w.dir?`<span class="tag ${dirCls}">${esc(w.dir)}</span>`:''}
           ${chgHtml?`<span style="margin-left:auto">${chgHtml}</span>`:''}
         </div>
         <div class="li-body">${w.cond?esc(w.cond):'<span style="color:var(--txt3)">未填写触发条件</span>'}</div>
@@ -750,19 +806,34 @@ function openWatch(id){
   $('modalBody').innerHTML = `
     <div class="modal-h"><h3>${w?'编辑标的':'添加关注标的'}</h3>
       <button class="icon-btn" onclick="closeModal()">✕</button></div>
-    <div class="row c2">
-      <div class="field"><label class="f">名称</label><input type="text" id="w_name" value="${esc(w?.name||'')}" placeholder="如：某某股份"></div>
-      <div class="field"><label class="f">代码</label><input type="text" id="w_code" value="${esc(w?.code||'')}" placeholder="600000"></div>
+    <div class="field"><label class="f">品种</label>
+      <div class="chips" id="w_itype">
+        <div class="chip on" data-v="股票">股票</div>
+        <div class="chip" data-v="ETF">ETF</div>
+        <div class="chip" data-v="股指期货">股指期货</div>
+        <div class="chip" data-v="商品期货">商品期货</div>
+      </div>
     </div>
-    <div class="field"><label class="f">方向</label>
+    <div class="row c2">
+      <div class="field"><label class="f">名称</label><input type="text" id="w_name" value="${esc(w?.name||'')}" placeholder="如：某某股份 / 300ETF / IF2512"></div>
+      <div class="field"><label class="f">代码</label><input type="text" id="w_code" value="${esc(w?.code||'')}" placeholder="600000 / 510300 / IF2512"></div>
+    </div>
+    <div class="field" id="w_dirWrap"><label class="f">方向</label>
       <div class="chips" id="w_dir">
         <div class="chip on" data-v="买入">买入</div>
         <div class="chip" data-v="卖出">卖出</div>
         <div class="chip" data-v="观察">观察</div>
       </div>
     </div>
+    <div class="field" id="w_dir2Wrap" style="display:none"><label class="f">方向（期货）</label>
+      <div class="chips" id="w_dir2">
+        <div class="chip on" data-v="做多">做多</div>
+        <div class="chip" data-v="做空">做空</div>
+        <div class="chip" data-v="观察">观察</div>
+      </div>
+    </div>
     <div class="field"><label class="f">触发条件</label>
-      <textarea id="w_cond" placeholder="如：回踩5日线不破，分时走稳后买入 / 高开超5%放弃">${esc(w?.cond||'')}</textarea>
+      <textarea id="w_cond" placeholder="如：回踩5日线不破，分时走稳后买入 / 高开超5%放弃 / 跌破前低做空">${esc(w?.cond||'')}</textarea>
     </div>
     <div class="field"><label class="f">计划仓位 (%)</label><input type="number" id="w_pos" value="${esc(w?.pos||'')}" placeholder="10"></div>
     <div class="field"><label class="f">止损位 / 卖出条件</label>
@@ -770,16 +841,31 @@ function openWatch(id){
     </div>
     <div class="btn-row"><button class="btn" onclick="saveWatch()">保存</button>
       <button class="btn ghost" onclick="closeModal()">取消</button></div>`;
-  chipInit('w_dir', false);
-  if(w && w.dir) chipSet('w_dir', w.dir);
+  chipInit('w_itype', false); chipInit('w_dir', false); chipInit('w_dir2', false);
+  const upd = ()=>{
+    const fut = isFut(chipGet('w_itype'));
+    $('w_dirWrap').style.display = fut ? 'none' : '';
+    $('w_dir2Wrap').style.display = fut ? '' : 'none';
+  };
+  bindTypeToggle('w_itype', upd);
+  if(w){
+    chipSet('w_itype', itypeOf(w));
+    if(isFut(w.itype)) chipSet('w_dir2', w.dir||'做多');
+    else if(w.dir) chipSet('w_dir', w.dir);
+  }
+  upd();
   openModal();
 }
 function saveWatch(){
   const name = $('w_name').value.trim();
   if(!name){ toast('请填写名称'); return; }
+  const it = chipGet('w_itype') || '股票';
+  const fut = isFut(it);
   const obj = {
     name, code: $('w_code').value.trim(),
-    dir: chipGet('w_dir'), cond: $('w_cond').value.trim(),
+    itype: it,
+    dir: fut ? (chipGet('w_dir2')||'做多') : (chipGet('w_dir')||'买入'),
+    cond: $('w_cond').value.trim(),
     pos: $('w_pos').value, stop: $('w_stop').value.trim(),
   };
   if(editCtx.id){
@@ -812,6 +898,7 @@ function renderPost(){
   $('r_dn').value = r.dn ?? '';
   $('r_sector').value = r.sector || '';
   $('r_concl').value = r.concl || '';
+  $('r_other').value = r.other || '';
   $('r_score').value = r.score ?? 7;
   setRange($('r_score'));
   $('r_review').value = r.review || '';
@@ -844,22 +931,28 @@ function renderTrades(d){
   box.innerHTML = list.map(t=>{
     const p = num(t.pnl);
     const pcls = p>0?'up':(p<0?'down':'neu');
+    const it = itypeOf(t);
+    const fut = isFut(it);
+    const qtyLbl = fut ? '手' : '股';
     return `<div class="list-item">
       <div class="li-head">
-        <span class="tag ${t.side==='买入'?'buy':'sell'}">${esc(t.side)}</span>
+        ${typeTag(it)}
+        <span class="tag ${sideClass(t.side)}">${esc(t.side)}</span>
         <span class="li-title">${esc(t.name)}</span>
         <span class="li-meta">${esc(t.code||'')}</span>
         ${t.time?`<span class="li-meta">${esc(t.time)}</span>`:''}
         <span style="margin-left:auto" class="li-meta ${pcls}">${t.pnl!==''&&t.pnl!=null?'盈亏 '+money(p):''}</span>
       </div>
       <div class="li-meta" style="margin-bottom:6px">
-        <span>价格 ${esc(t.price||'-')}</span>
-        <span>数量 ${esc(t.qty||'-')}</span>
-        <span>仓位 ${esc(t.position||'-')}%</span>
+        <span>${fut?'点位':'价格'} ${esc(t.price||'-')}</span>
+        <span>${fut?'手数':'数量'} ${esc(t.qty||'-')}${qtyLbl}</span>
+        ${fut&&t.mult?`<span>乘数 ${esc(t.mult)}</span>`:''}
+        ${fut&&t.oc==='平仓'&&t.openPrice?`<span>开仓价 ${esc(t.openPrice)}</span>`:''}
+        ${!fut?`<span>仓位 ${esc(t.position||'-')}%</span>`:''}
         ${t.result?`<span class="tag ${t.result==='盈利'?'win':(t.result==='亏损'?'loss':'n')}">${esc(t.result)}</span>`:''}
         ${t.isPlan?`<span class="tag n">${esc(t.isPlan)}</span>`:''}
       </div>
-      ${t.reason?`<div class="li-body">买入/卖出理由：${esc(t.reason)}</div>`:''}
+      ${t.reason?`<div class="li-body">操作理由：${esc(t.reason)}</div>`:''}
       ${t.note?`<div class="li-body" style="margin-top:4px">备注：${esc(t.note)}</div>`:''}
       <div class="li-actions">
         <button class="btn ghost sm" onclick="openTrade('${t.id}')">编辑</button>
@@ -875,24 +968,56 @@ function openTrade(id){
   $('modalBody').innerHTML = `
     <div class="modal-h"><h3>${t?'编辑交易':'记录一笔交易'}</h3>
       <button class="icon-btn" onclick="closeModal()">✕</button></div>
-    <div class="field"><label class="f">方向</label>
+    <div class="field"><label class="f">品种</label>
+      <div class="chips" id="t_itype">
+        <div class="chip on" data-v="股票">股票</div>
+        <div class="chip" data-v="ETF">ETF</div>
+        <div class="chip" data-v="股指期货">股指期货</div>
+        <div class="chip" data-v="商品期货">商品期货</div>
+      </div>
+    </div>
+    <div class="field" id="t_sideWrap"><label class="f">方向</label>
       <div class="chips" id="t_side">
         <div class="chip on" data-v="买入">买入</div>
         <div class="chip" data-v="卖出">卖出</div>
       </div>
     </div>
+    <div id="t_futBox" style="display:none">
+      <div class="row c2">
+        <div class="field"><label class="f">开 / 平仓</label>
+          <div class="chips" id="t_oc">
+            <div class="chip on" data-v="开仓">开仓</div>
+            <div class="chip" data-v="平仓">平仓</div>
+          </div>
+        </div>
+        <div class="field"><label class="f">多空方向</label>
+          <div class="chips" id="t_dir2">
+            <div class="chip on" data-v="多">多</div>
+            <div class="chip" data-v="空">空</div>
+          </div>
+        </div>
+      </div>
+      <div class="row c2">
+        <div class="field"><label class="f">合约乘数（元/点）</label><input type="number" id="t_mult" value="${esc(t?.mult||'')}" placeholder="IF/IC/IM=300"></div>
+        <div class="field" id="t_openpxWrap" style="display:none"><label class="f">开仓价（平仓单填）</label><input type="number" id="t_openpx" step="0.01" value="${esc(t?.openPrice||'')}" placeholder="对应的开仓价"></div>
+      </div>
+      <div class="btn-row" id="t_calcRow" style="display:none;margin-bottom:12px">
+        <button class="btn ghost sm" onclick="calcFutPnl()">⚡ 自动算盈亏</button>
+        <span class="hint" style="margin:0">（平仓价−开仓价）×手数×乘数，空单取反</span>
+      </div>
+    </div>
     <div class="row c2">
-      <div class="field"><label class="f">名称</label><input type="text" id="t_name" value="${esc(t?.name||'')}" placeholder="股票名称"></div>
-      <div class="field"><label class="f">代码</label><input type="text" id="t_code" value="${esc(t?.code||'')}" placeholder="600000"></div>
+      <div class="field"><label class="f">名称</label><input type="text" id="t_name" value="${esc(t?.name||'')}" placeholder="名称"></div>
+      <div class="field"><label class="f">代码</label><input type="text" id="t_code" value="${esc(t?.code||'')}" placeholder="600000 / 510300 / IF2512"></div>
     </div>
     <div class="row c3">
-      <div class="field"><label class="f">成交价</label><input type="number" id="t_price" step="0.01" value="${esc(t?.price||'')}" placeholder="0.00"></div>
-      <div class="field"><label class="f">数量(股)</label><input type="number" id="t_qty" value="${esc(t?.qty||'')}" placeholder="100"></div>
+      <div class="field"><label class="f" id="t_price_lbl">成交价</label><input type="number" id="t_price" step="0.01" value="${esc(t?.price||'')}" placeholder="0.00"></div>
+      <div class="field"><label class="f" id="t_qty_lbl">数量(股)</label><input type="number" id="t_qty" value="${esc(t?.qty||'')}" placeholder="100"></div>
       <div class="field"><label class="f">时间</label><input type="text" id="t_time" value="${esc(t?.time||'')}" placeholder="09:35"></div>
     </div>
     <div class="row c2">
-      <div class="field"><label class="f">仓位 (%)</label><input type="number" id="t_pos" value="${esc(t?.position||'')}" placeholder="10"></div>
-      <div class="field"><label class="f">已实现盈亏 (¥)</label><input type="number" id="t_pnl" step="0.01" value="${esc(t?.pnl??'')}" placeholder="卖出时填"></div>
+      <div class="field" id="t_posWrap"><label class="f">仓位 (%)</label><input type="number" id="t_pos" value="${esc(t?.position||'')}" placeholder="10"></div>
+      <div class="field"><label class="f">已实现盈亏 (¥)</label><input type="number" id="t_pnl" step="0.01" value="${esc(t?.pnl??'')}" placeholder="卖出/平仓时填"></div>
     </div>
     <div class="field"><label class="f">是否符合计划</label>
       <div class="chips" id="t_isplan">
@@ -917,23 +1042,64 @@ function openTrade(id){
     </div>
     <div class="btn-row"><button class="btn" onclick="saveTrade()">保存</button>
       <button class="btn ghost" onclick="closeModal()">取消</button></div>`;
-  chipInit('t_side', false); chipInit('t_isplan', false); chipInit('t_result', false);
-  if(t?.side) chipSet('t_side', t.side);
+  chipInit('t_itype', false); chipInit('t_side', false); chipInit('t_oc', false); chipInit('t_dir2', false);
+  chipInit('t_isplan', false); chipInit('t_result', false);
+  const updForm = ()=>{
+    const fut = isFut(chipGet('t_itype'));
+    $('t_sideWrap').style.display = fut ? 'none' : '';
+    $('t_futBox').style.display = fut ? '' : 'none';
+    $('t_posWrap').style.display = fut ? 'none' : '';
+    const isClose = chipGet('t_oc')==='平仓';
+    $('t_openpxWrap').style.display = (fut && isClose) ? '' : 'none';
+    $('t_calcRow').style.display = (fut && isClose) ? 'flex' : 'none';
+    $('t_qty_lbl').textContent = fut ? '手数' : '数量(股)';
+    $('t_price_lbl').textContent = fut ? '成交点位' : '成交价';
+  };
+  bindTypeToggle('t_itype', updForm);
+  bindTypeToggle('t_oc', updForm);
+  if(t){
+    chipSet('t_itype', itypeOf(t));
+    if(isFut(t.itype)){
+      chipSet('t_oc', t.oc||'开仓');
+      chipSet('t_dir2', t.dir2||'多');
+    }else if(t.side) chipSet('t_side', t.side);
+  }
   if(t?.isPlan) chipSet('t_isplan', t.isPlan);
   if(t?.result) chipSet('t_result', t.result);
+  updForm();
   openModal();
+}
+/* 期货平仓自动算盈亏 */
+function calcFutPnl(){
+  const dir2 = chipGet('t_dir2')||'多';
+  const p = num($('t_price').value), o = num($('t_openpx').value);
+  const q = num($('t_qty').value), m = num($('t_mult').value)||1;
+  if(!p || !o || !q){ toast('请先填平仓点位、开仓价、手数'); return; }
+  const v = futPnl(o, p, q, m, dir2);
+  $('t_pnl').value = v.toFixed(2);
+  $('t_pnl').style.borderColor = 'var(--accent)';
+  setTimeout(()=>{ $('t_pnl').style.borderColor=''; }, 1200);
+  toast('已计算：' + money(v));
 }
 function saveTrade(){
   const name = $('t_name').value.trim();
   if(!name){ toast('请填写名称'); return; }
   const d = $('r_date').value || todayStr();
+  const it = chipGet('t_itype') || '股票';
+  const fut = isFut(it);
+  const oc = fut ? (chipGet('t_oc')||'开仓') : '';
+  const dir2 = fut ? (chipGet('t_dir2')||'多') : '';
   const obj = {
     date: d,
-    side: chipGet('t_side') || '买入',
+    itype: it,
+    side: fut ? oc.slice(0,1) + dir2 : (chipGet('t_side') || '买入'),
+    oc, dir2,
+    mult: fut ? $('t_mult').value : '',
+    openPrice: fut ? $('t_openpx').value : '',
     name, code: $('t_code').value.trim(),
     price: $('t_price').value, qty: $('t_qty').value,
     time: $('t_time').value.trim(),
-    position: $('t_pos').value,
+    position: fut ? '' : $('t_pos').value,
     pnl: $('t_pnl').value,
     isPlan: chipGet('t_isplan'),
     result: chipGet('t_result'),
@@ -963,6 +1129,7 @@ function saveReview(){
     mood: chipGet('r_mood'), trend: chipGet('r_trend'), vol: chipGet('r_vol'),
     sector: $('r_sector').value.trim(),
     concl: $('r_concl').value.trim(),
+    other: $('r_other').value.trim(),
     score: $('r_score').value,
     checks: [...$('r_check').querySelectorAll('.chip.on')].map(x=>x.dataset.v),
     review: $('r_review').value.trim(),
@@ -1022,19 +1189,24 @@ function delReview(d){
    ========================================================= */
 function renderHold(){
   const hs = DB.holdings;
-  let cost=0, mv=0;
+  let cost=0, mv=0, pnl=0, hasFut=false;
   hs.forEach(h=>{
-    cost += num(h.cost) * num(h.qty);
-    mv   += num(h.price) * num(h.qty);
+    const t = itypeOf(h);
+    const fut = isFut(t);
+    if(fut) hasFut = true;
+    const m = fut ? (num(h.mult)||1) : 1;
+    cost += num(h.cost) * num(h.qty) * m;
+    mv   += num(h.price) * num(h.qty) * m;
+    const hp = holdPnl(h);
+    if(hp !== null) pnl += hp;
   });
-  const pnl = mv - cost;
   const pnlPct = cost ? pnl/cost*100 : 0;
-  const win = hs.filter(h=>num(h.price)>num(h.cost)).length;
+  const win = hs.filter(h=>{ const x = holdPnl(h); return x!==null && x>0; }).length;
   $('holdKpis').innerHTML = `
-    <div class="kpi"><div class="k">持仓市值</div><div class="v">${money(mv)}</div><div class="s">${hs.length} 只标的</div></div>
-    <div class="kpi"><div class="k">持仓成本</div><div class="v">${money(cost)}</div><div class="s">合计买入成本</div></div>
-    <div class="kpi"><div class="k">浮动盈亏</div><div class="v ${cls(pnl)}">${money(pnl)}</div><div class="s">占总成本 ${pct(pnlPct)}</div></div>
-    <div class="kpi"><div class="k">盈利标的</div><div class="v">${win}/${hs.length||0}</div><div class="s">当前价 > 成本价</div></div>`;
+    <div class="kpi"><div class="k">${hasFut?'名义市值':'持仓市值'}</div><div class="v">${money(mv)}</div><div class="s">${hs.length} 只标的${hasFut?'（期货按乘数折算）':''}</div></div>
+    <div class="kpi"><div class="k">${hasFut?'名义成本':'持仓成本'}</div><div class="v">${money(cost)}</div><div class="s">合计投入本金口径</div></div>
+    <div class="kpi"><div class="k">浮动盈亏</div><div class="v ${cls(pnl)}">${money(pnl)}</div><div class="s">占名义成本 ${pct(pnlPct)}</div></div>
+    <div class="kpi"><div class="k">盈利标的</div><div class="v">${win}/${hs.length||0}</div><div class="s">浮盈为正的个数</div></div>`;
 
   $('holdCount').textContent = hs.length + ' 只';
   const box = $('holdList');
@@ -1043,28 +1215,36 @@ function renderHold(){
     return;
   }
   const rows = hs.map(h=>{
+    const t = itypeOf(h);
+    const fut = isFut(t);
     const c = num(h.cost), p = num(h.price), q = num(h.qty);
-    const pl = (p-c)*q;
-    const plp = c ? (p-c)/c*100 : 0;
+    const m = fut ? (num(h.mult)||1) : 1;
+    const pl = holdPnl(h);
+    const nc = c * q * m;
+    const plp = (pl!==null && nc) ? pl/nc*100 : null;
     const chg = h.changePct;
     const chgTip = (chg!==undefined && chg!==null && chg!=='') ? `<span class="${cls(num(chg))}" style="font-size:11.5px">${pct(chg)}</span>` : '';
+    const dirHtml = fut
+      ? `<span class="tag ${h.dir2==='多'?'buy':'sell'}" style="font-size:10px">${esc(h.dir2||'多')}</span>`
+      : '<span style="color:var(--txt3)">-</span>';
     return `<tr>
-      <td>${esc(h.name)}<br><span style="color:var(--txt3);font-size:11.5px">${esc(h.code||'')}</span></td>
-      <td class="num">${q}</td>
+      <td>${typeTag(t)} ${esc(h.name)}<br><span style="color:var(--txt3);font-size:11.5px">${esc(h.code||'')}</span></td>
+      <td class="num">${dirHtml}</td>
+      <td class="num">${q}${fut?'手':''}</td>
       <td class="num">${c.toFixed(2)}</td>
       <td class="num">${p?p.toFixed(2):'-'}<br>${chgTip}</td>
-      <td class="num ${cls(pl)}">${p?money(pl):'-'}</td>
-      <td class="num ${cls(plp)}">${p?pct(plp):'-'}</td>
+      <td class="num ${pl===null?'':cls(pl)}">${pl!==null?money(pl):'-'}</td>
+      <td class="num ${plp===null?'':cls(plp)}">${plp!==null?pct(plp):'-'}</td>
       <td class="num">${num(h.weight)?num(h.weight).toFixed(1)+'%':'-'}</td>
       <td><button class="btn ghost sm" onclick="openHold('${h.id}')">改</button>
           <button class="btn danger sm" onclick="delHold('${h.id}')">删</button></td>
     </tr>`;
   }).join('');
   box.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>标的</th><th class="num">数量</th><th class="num">成本</th><th class="num">现价</th>
+    <thead><tr><th>标的</th><th class="num">方向</th><th class="num">数量</th><th class="num">成本</th><th class="num">现价</th>
       <th class="num">浮盈</th><th class="num">幅度</th><th class="num">仓位</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>
-    <div class="hint">「现价」需手动更新为最新价，浮盈自动计算。</div>`;
+    <div class="hint">股票/ETF 的现价可点「刷新现价」自动更新；期货现价请按行情软件手动填写。浮盈按（现价−成本）×数量×乘数计算，空单自动取反。</div>`;
 }
 function openHold(id){
   const h = id ? DB.holdings.find(x=>x.id===id) : null;
@@ -1072,31 +1252,70 @@ function openHold(id){
   $('modalBody').innerHTML = `
     <div class="modal-h"><h3>${h?'编辑持仓':'添加持仓'}</h3>
       <button class="icon-btn" onclick="closeModal()">✕</button></div>
+    <div class="field"><label class="f">品种</label>
+      <div class="chips" id="h_itype">
+        <div class="chip on" data-v="股票">股票</div>
+        <div class="chip" data-v="ETF">ETF</div>
+        <div class="chip" data-v="股指期货">股指期货</div>
+        <div class="chip" data-v="商品期货">商品期货</div>
+      </div>
+    </div>
+    <div id="h_futBox" style="display:none">
+      <div class="row c2">
+        <div class="field"><label class="f">多空方向</label>
+          <div class="chips" id="h_dir2">
+            <div class="chip on" data-v="多">多</div>
+            <div class="chip" data-v="空">空</div>
+          </div>
+        </div>
+        <div class="field"><label class="f">合约乘数（元/点）</label><input type="number" id="h_mult" value="${esc(h?.mult||'')}" placeholder="IF/IC/IM=300"></div>
+      </div>
+    </div>
     <div class="row c2">
-      <div class="field"><label class="f">名称</label><input type="text" id="h_name" value="${esc(h?.name||'')}"></div>
-      <div class="field"><label class="f">代码</label><input type="text" id="h_code" value="${esc(h?.code||'')}"></div>
+      <div class="field"><label class="f">名称</label><input type="text" id="h_name" value="${esc(h?.name||'')}" placeholder="如：沪深300ETF / IF2512"></div>
+      <div class="field"><label class="f">代码</label><input type="text" id="h_code" value="${esc(h?.code||'')}" placeholder="510300 / IF2512"></div>
     </div>
     <div class="row c3">
-      <div class="field"><label class="f">数量(股)</label><input type="number" id="h_qty" value="${esc(h?.qty||'')}"></div>
-      <div class="field"><label class="f">成本价</label><input type="number" id="h_cost" step="0.001" value="${esc(h?.cost||'')}"></div>
-      <div class="field"><label class="f">现价</label><input type="number" id="h_price" step="0.01" value="${esc(h?.price||'')}"></div>
+      <div class="field"><label class="f" id="h_qty_lbl">数量(股)</label><input type="number" id="h_qty" value="${esc(h?.qty||'')}"></div>
+      <div class="field"><label class="f" id="h_cost_lbl">成本价</label><input type="number" id="h_cost" step="0.001" value="${esc(h?.cost||'')}"></div>
+      <div class="field"><label class="f" id="h_price_lbl">现价</label><input type="number" id="h_price" step="0.01" value="${esc(h?.price||'')}"></div>
     </div>
     <div class="row c2">
-      <div class="field"><label class="f">仓位占比 (%)</label><input type="number" id="h_weight" value="${esc(h?.weight||'')}"></div>
+      <div class="field" id="h_weightWrap"><label class="f">仓位占比 (%)</label><input type="number" id="h_weight" value="${esc(h?.weight||'')}"></div>
       <div class="field"><label class="f">止损价</label><input type="number" id="h_stop" step="0.01" value="${esc(h?.stop||'')}"></div>
     </div>
     <div class="field"><label class="f">备注</label><input type="text" id="h_note" value="${esc(h?.note||'')}" placeholder="持有逻辑 / 计划"></div>
     <div class="btn-row"><button class="btn" onclick="saveHold()">保存</button>
       <button class="btn ghost" onclick="closeModal()">取消</button></div>`;
+  chipInit('h_itype', false); chipInit('h_dir2', false);
+  const updH = ()=>{
+    const fut = isFut(chipGet('h_itype'));
+    $('h_futBox').style.display = fut ? '' : 'none';
+    $('h_weightWrap').style.display = fut ? 'none' : '';
+    $('h_qty_lbl').textContent = fut ? '手数' : '数量(股)';
+    $('h_cost_lbl').textContent = fut ? '开仓点位' : '成本价';
+    $('h_price_lbl').textContent = fut ? '最新点位' : '现价';
+  };
+  bindTypeToggle('h_itype', updH);
+  if(h){
+    chipSet('h_itype', itypeOf(h));
+    if(isFut(h.itype)) chipSet('h_dir2', h.dir2||'多');
+  }
+  updH();
   openModal();
 }
 function saveHold(){
   const name = $('h_name').value.trim();
   if(!name){ toast('请填写名称'); return; }
+  const it = chipGet('h_itype') || '股票';
+  const fut = isFut(it);
   const obj = {
     name, code: $('h_code').value.trim(),
+    itype: it,
+    dir2: fut ? (chipGet('h_dir2')||'多') : '',
+    mult: fut ? $('h_mult').value : '',
     qty: $('h_qty').value, cost: $('h_cost').value, price: $('h_price').value,
-    weight: $('h_weight').value, stop: $('h_stop').value, note: $('h_note').value.trim(),
+    weight: fut ? '' : $('h_weight').value, stop: $('h_stop').value, note: $('h_note').value.trim(),
   };
   if(editCtx.id){
     const i = DB.holdings.findIndex(x=>x.id===editCtx.id);
@@ -1122,8 +1341,9 @@ function inRange(d){
   return true;
 }
 function clearRange(){ $('s_from').value=''; $('s_to').value=''; renderStats(); }
+let statType = '全部';
 function renderStats(){
-  const trades = DB.trades.filter(t=>inRange(t.date));
+  const trades = DB.trades.filter(t=>inRange(t.date) && (statType==='全部' || itypeOf(t)===statType));
   const closed = trades.filter(t=>t.pnl!=='' && t.pnl!=null && !isNaN(parseFloat(t.pnl)));
   const wins = closed.filter(t=>num(t.pnl)>0);
   const losses = closed.filter(t=>num(t.pnl)<0);
@@ -1141,8 +1361,9 @@ function renderStats(){
   const reviews = Object.values(DB.reviews).filter(r=>inRange(r.date));
   const avgScore = reviews.length ? reviews.reduce((s,r)=>s+num(r.score),0)/reviews.length : 0;
 
-  $('statScope').textContent = ($('s_from').value||$('s_to').value)
+  const rangeTxt = ($('s_from').value||$('s_to').value)
     ? `${$('s_from').value||'起始'} ~ ${$('s_to').value||'今天'}` : '全部';
+  $('statScope').textContent = statType==='全部' ? rangeTxt : `${statType} · ${rangeTxt}`;
 
   $('statKpis').innerHTML = `
     <div class="kpi"><div class="k">已平仓交易</div><div class="v">${closed.length}</div><div class="s">共 ${trades.length} 笔记录</div></div>
@@ -1153,6 +1374,30 @@ function renderStats(){
     <div class="kpi"><div class="k">执行计划率</div><div class="v">${planRate.toFixed(0)}%</div><div class="s">${planOk}/${trades.length} 笔按计划</div></div>
     <div class="kpi"><div class="k">平均纪律分</div><div class="v">${avgScore.toFixed(1)}</div><div class="s">${reviews.length} 天复盘</div></div>
     <div class="kpi"><div class="k">最大单笔盈利</div><div class="v up">${money(closed.length?Math.max(...closed.map(t=>num(t.pnl))):0)}</div><div class="s">最大亏损 ${money(closed.length?Math.min(...closed.map(t=>num(t.pnl))):0)}</div></div>`;
+
+  // 分品种统计（始终基于日期范围内的全部交易，不受上方品种筛选影响）
+  (function(){
+    const all = DB.trades.filter(t=>inRange(t.date));
+    const rows = ITYPES.map(tp=>{
+      const list = all.filter(t=>itypeOf(t)===tp);
+      if(!list.length) return null;
+      const cl = list.filter(t=>t.pnl!=='' && t.pnl!=null && !isNaN(parseFloat(t.pnl)));
+      const w = cl.filter(t=>num(t.pnl)>0);
+      const tot = cl.reduce((s2,t)=>s2+num(t.pnl),0);
+      const wr = cl.length ? w.length/cl.length*100 : 0;
+      return {tp, n:list.length, cn:cl.length, tot, wr};
+    }).filter(Boolean);
+    $('typeStats').innerHTML = rows.length ? rows.map(r=>`
+      <div style="margin-bottom:12px">
+        <div class="flex-between" style="font-size:13px;margin-bottom:4px">
+          <span>${typeTag(r.tp)} <span style="color:var(--txt3)">${r.n} 笔 / 已平仓 ${r.cn}</span></span>
+          <span class="${cls(r.tot)}" style="font-weight:600">${money(r.tot)}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${r.wr}%;background:${r.wr>=50?'var(--up)':'var(--down)'}"></div></div>
+        <div style="font-size:11.5px;color:var(--txt3);margin-top:3px">胜率 ${r.wr.toFixed(0)}%</div>
+      </div>`).join('')
+      : '<div class="empty">暂无交易记录</div>';
+  })();
 
   // 纪律分数趋势
   const sc = Object.values(DB.reviews).filter(r=>inRange(r.date)).sort((a,b)=>a.date.localeCompare(b.date)).slice(-14);
@@ -1404,28 +1649,36 @@ function loadDemo(){
     };
   });
   const demoTrades = [
-    {d:0, side:'买入', name:'特锐德', code:'300001', price:33.20, qty:1000, pnl:'', result:'未平仓', isPlan:'按计划执行', reason:'回踩5日线企稳，量能温和放大', note:'买点符合计划', pos:'18'},
-    {d:0, side:'卖出', name:'白云机场', code:'600004', price:7.70, qty:500, pnl:-1240.00, result:'亏损', isPlan:'临时起意', reason:'看到冲高追进去，结果被套', note:'追高，违反纪律', pos:'12'},
-    {d:1, side:'卖出', name:'特锐德', code:'300001', price:33.90, qty:1000, pnl:750.00, result:'盈利', isPlan:'按计划执行', reason:'达到计划目标位，按计划止盈', note:'执行到位', pos:'0'},
-    {d:2, side:'买入', name:'贵州茅台', code:'600519', price:1520.00, qty:100, pnl:'', result:'未平仓', isPlan:'按计划执行', reason:'板块启动首日，符合打板条件', note:'分时强势，敢于下手', pos:'10'},
-    {d:3, side:'卖出', name:'贵州茅台', code:'600519', price:1560.00, qty:100, pnl:420.00, result:'盈利', isPlan:'计划外但有理由', reason:'冲高到压力位先减仓一半', note:'减仓合理，不贪', pos:'0'},
-    {d:3, side:'买入', name:'工商银行', code:'601398', price:6.20, qty:800, pnl:'', result:'未平仓', isPlan:'临时起意', reason:'朋友推荐，看着不错', note:'听消息买入，不是好习惯', pos:'12'},
+    {d:0, itype:'股票', side:'买入', name:'特锐德', code:'300001', price:33.20, qty:1000, pnl:'', result:'未平仓', isPlan:'按计划执行', reason:'回踩5日线企稳，量能温和放大', note:'买点符合计划', pos:'18'},
+    {d:0, itype:'股票', side:'卖出', name:'白云机场', code:'600004', price:7.70, qty:500, pnl:-1240.00, result:'亏损', isPlan:'临时起意', reason:'看到冲高追进去，结果被套', note:'追高，违反纪律', pos:'12'},
+    {d:1, itype:'股票', side:'卖出', name:'特锐德', code:'300001', price:33.90, qty:1000, pnl:750.00, result:'盈利', isPlan:'按计划执行', reason:'达到计划目标位，按计划止盈', note:'执行到位', pos:'0'},
+    {d:1, itype:'ETF', side:'买入', name:'沪深300ETF', code:'510300', price:3.92, qty:10000, pnl:'', result:'未平仓', isPlan:'按计划执行', reason:'指数回踩缺口不破，定投式低吸', note:'仓位轻，拿波段', pos:'15'},
+    {d:2, itype:'股票', side:'买入', name:'贵州茅台', code:'600519', price:1520.00, qty:100, pnl:'', result:'未平仓', isPlan:'按计划执行', reason:'板块启动首日，符合打板条件', note:'分时强势，敢于下手', pos:'10'},
+    {d:2, itype:'股指期货', side:'平多', oc:'平仓', dir2:'多', mult:300, openPrice:4100, name:'IF当月连续', code:'IF2512', price:4150, qty:1, pnl:15000.00, result:'盈利', isPlan:'按计划执行', reason:'突破前高后果断止盈，（4150−4100）×1×300', note:'趋势单执行到位'},
+    {d:3, itype:'股票', side:'卖出', name:'贵州茅台', code:'600519', price:1560.00, qty:100, pnl:420.00, result:'盈利', isPlan:'计划外但有理由', reason:'冲高到压力位先减仓一半', note:'减仓合理，不贪', pos:'0'},
+    {d:3, itype:'商品期货', side:'平空', oc:'平仓', dir2:'空', mult:5, openPrice:75000, name:'沪铜主力', code:'CU2501', price:74500, qty:1, pnl:2500.00, result:'盈利', isPlan:'计划外但有理由', reason:'库存数据利空兑现，空单落袋，（75000−74500）×1×5', note:'消息单，跑得快'},
+    {d:3, itype:'股票', side:'买入', name:'工商银行', code:'601398', price:6.20, qty:800, pnl:'', result:'未平仓', isPlan:'临时起意', reason:'朋友推荐，看着不错', note:'听消息买入，不是好习惯', pos:'12'},
   ];
   demoTrades.forEach(t=>{
     DB.trades.push({
-      id:uid(), date:days[t.d], side:t.side, name:t.name, code:t.code,
-      price:t.price, qty:t.qty, time: t.side==='买入'?'09:4'+Math.floor(Math.random()*9):'14:5'+Math.floor(Math.random()*9),
-      position:t.pos, pnl:t.pnl, isPlan:t.isPlan, result:t.result,
+      id:uid(), date:days[t.d], itype:t.itype||'股票', side:t.side,
+      oc:t.oc||'', dir2:t.dir2||'', mult:t.mult||'', openPrice:t.openPrice||'',
+      name:t.name, code:t.code,
+      price:t.price, qty:t.qty, time: (t.side==='买入'||t.side==='开多')?'09:4'+Math.floor(Math.random()*9):'14:5'+Math.floor(Math.random()*9),
+      position:t.pos||'', pnl:t.pnl, isPlan:t.isPlan, result:t.result,
       reason:t.reason, note:t.note,
     });
   });
   DB.watches.push(
-    {id:uid(), name:'特锐德', code:'300001', dir:'买入', cond:'若回踩 18.00 不破且分时企稳，买入 2 成仓', pos:'20', stop:'跌破 17.60 止损'},
-    {id:uid(), name:'白云机场', code:'600004', dir:'观察', cond:'高开超 3% 放弃，平开走稳可低吸', pos:'10', stop:'跌破 7.60'}
+    {id:uid(), itype:'股票', name:'特锐德', code:'300001', dir:'买入', cond:'若回踩 18.00 不破且分时企稳，买入 2 成仓', pos:'20', stop:'跌破 17.60 止损'},
+    {id:uid(), itype:'ETF', name:'科创50ETF', code:'588000', dir:'观察', cond:'放量站上 5 日线再加仓，否则不动', pos:'10', stop:'跌破 0.92'},
+    {id:uid(), itype:'股指期货', name:'IF当月连续', code:'IF2512', dir:'买入', cond:'沪深300放量突破前高则开多 1 手，突破失败不做', pos:'', stop:'跌破 4080 止损'}
   );
   DB.holdings = [
-    {id:uid(), name:'特锐德', code:'300001', qty:1000, cost:32.00, price:'', weight:'18', stop:30.00, note:'中线持有，等板块发酵'},
-    {id:uid(), name:'白云机场', code:'600004', qty:800, cost:7.90, price:'', weight:'12', stop:7.50, note:'听消息买入，需重新评估'},
+    {id:uid(), itype:'股票', name:'特锐德', code:'300001', qty:1000, cost:32.00, price:'', weight:'18', stop:30.00, note:'中线持有，等板块发酵'},
+    {id:uid(), itype:'股票', name:'白云机场', code:'600004', qty:800, cost:7.90, price:'', weight:'12', stop:7.50, note:'听消息买入，需重新评估'},
+    {id:uid(), itype:'ETF', name:'沪深300ETF', code:'510300', qty:10000, cost:3.92, price:'', weight:'15', stop:3.80, note:'指数波段底仓'},
+    {id:uid(), itype:'股指期货', name:'IF当月连续', code:'IF2512', dir2:'多', mult:300, qty:1, cost:4120, price:'', note:'趋势多单，破位就走'},
   ];
   save(); App.go(App.cur); toast('示例数据已载入');
 }
@@ -1449,6 +1702,9 @@ const IDX = {
   sh:  'sh000001',   // 上证指数
   cyb: 'sz399006',   // 创业板指
   sz:  'sz399001',   // 深证成指（同时用于取深市成交额）
+  hs300:'sh000300',  // 沪深300（股指期货 IF 标的）
+  zz500:'sh000905',  // 中证500（IC 标的）
+  zz1000:'sh000852', // 中证1000（IM 标的）
 };
 
 /* 代码归一化：600000 / 000001 / 300001 / sh600000 / SZ000001 → sh600000 */
@@ -1461,7 +1717,7 @@ function normCode(code){
   if(d.length !== 6) return '';
   // 6开头=沪, 0/3开头=深, 4/8开头=北交所
   if(/^[65]/.test(d)) return 'sh'+d;
-  if(/^[03]/.test(d)) return 'sz'+d;
+  if(/^[013]/.test(d)) return 'sz'+d;   // 含深市ETF 15/16/18 开头
   if(/^[48]/.test(d)) return 'bj'+d;
   return '';
 }
@@ -1524,11 +1780,14 @@ async function fetchMarket(verbose){
   const out = verbose ? $('quoteTestOut') : null;
   if(out) out.textContent = '正在抓取…';
   try{
-    const codes = [IDX.sh, IDX.cyb, IDX.sz];
+    const codes = [IDX.sh, IDX.cyb, IDX.sz, IDX.hs300, IDX.zz500, IDX.zz1000];
     const raw = await fetchQuoteRaw(codes);
     const sh = parseQuote(raw[IDX.sh]);
     const cyb = parseQuote(raw[IDX.cyb]);
     const sz = parseQuote(raw[IDX.sz]);
+    const hs300 = parseQuote(raw[IDX.hs300]);
+    const zz500 = parseQuote(raw[IDX.zz500]);
+    const zz1000 = parseQuote(raw[IDX.zz1000]);
     if(!sh || !cyb) throw new Error('未获取到指数数据');
 
     // 两市成交额 = 沪市 + 深市（万元 → 亿元）
@@ -1549,12 +1808,17 @@ async function fetchMarket(verbose){
     save();
 
     const t = sh.time ? sh.time.slice(8,10)+':'+sh.time.slice(10,12) : '';
+    const futIdx = [hs300&&`沪深300 ${hs300.changePct.toFixed(2)}%`, zz500&&`中证500 ${zz500.changePct.toFixed(2)}%`, zz1000&&`中证1000 ${zz1000.changePct.toFixed(2)}%`].filter(Boolean).join(' · ');
     const msg = `上证 ${sh.changePct.toFixed(2)}% · 创业板指 ${cyb.changePct.toFixed(2)}% · 两市 ${amtYi.toFixed(0)} 亿${t?' · '+t:''}`;
     if(verbose){
       out.innerHTML = `✓ 抓取成功（${t}）<br>上证指数 ${sh.price.toFixed(2)}　<b class="${cls(sh.changePct)}">${pct(sh.changePct)}</b><br>`
         + `创业板指 ${cyb.price.toFixed(2)}　<b class="${cls(cyb.changePct)}">${pct(cyb.changePct)}</b><br>`
         + (sz?`深证成指 ${sz.price.toFixed(2)}　<b class="${cls(sz.changePct)}">${pct(sz.changePct)}</b><br>`:'')
-        + `两市成交额 ${amtYi.toFixed(0)} 亿元`;
+        + `两市成交额 ${amtYi.toFixed(0)} 亿元<br>`
+        + (hs300?`沪深300 ${hs300.price.toFixed(2)}　<b class="${cls(hs300.changePct)}">${pct(hs300.changePct)}</b><br>`:'')
+        + (zz500?`中证500 ${zz500.price.toFixed(2)}　<b class="${cls(zz500.changePct)}">${pct(zz500.changePct)}</b><br>`:'')
+        + (zz1000?`中证1000 ${zz1000.price.toFixed(2)}　<b class="${cls(zz1000.changePct)}">${pct(zz1000.changePct)}</b><br>`:'')
+        + `<span style="color:var(--txt3);font-size:11.5px">沪深300 / 中证500 / 中证1000 分别为 IF / IC / IM 股指期货标的</span>`;
     }else{
       const st = $('mktStatus');
       if(st) st.innerHTML = `<span class="ok-t">✓</span> ${esc(msg)}`;
@@ -1575,13 +1839,18 @@ async function fetchMarket(verbose){
 /* 刷新持仓 / 关注标的现价 */
 async function refreshQuotes(scope){
   const targets = [];
-  if(scope === 'hold' || scope === 'all') DB.holdings.forEach(h=>{ const c = normCode(h.code); if(c) targets.push(c); });
-  if(scope === 'watch' || scope === 'all') DB.watches.forEach(w=>{ const c = normCode(w.code); if(c) targets.push(c); });
+  const collect = (item)=>{
+    if(isFut(itypeOf(item))) return;   // 期货无公开行情接口，手动填价
+    const c = normCode(item.code); if(c) targets.push(c);
+  };
+  if(scope === 'hold' || scope === 'all') DB.holdings.forEach(collect);
+  if(scope === 'watch' || scope === 'all') DB.watches.forEach(collect);
   const codes = [...new Set(targets)];
   const statusEl = scope==='hold' ? $('holdQuoteStatus') : (scope==='watch' ? $('watchQuoteStatus') : $('quoteTestOut'));
   if(!codes.length){
-    if(statusEl) statusEl.textContent = '没有可刷新的代码';
-    toast('请先填写股票代码');
+    const onlyFut = (scope==='hold'?DB.holdings:scope==='watch'?DB.watches:DB.holdings.concat(DB.watches)).some(x=>isFut(itypeOf(x)));
+    if(statusEl) statusEl.textContent = onlyFut ? '期货无自动行情，请按行情软件手动填价' : '没有可刷新的代码';
+    toast(onlyFut ? '期货现价请手动填写' : '请先填写股票/ETF代码');
     return;
   }
   if(statusEl) statusEl.textContent = '正在刷新…';
@@ -1593,8 +1862,9 @@ async function refreshQuotes(scope){
       const raw = await fetchQuoteRaw(batch);
       batch.forEach(c=>{ const q = parseQuote(raw[c]); if(q) map[c] = q; });
     }
-    let hit = 0, miss = 0;
+    let hit = 0, miss = 0, futSkip = 0;
     const upd = (item)=>{
+      if(isFut(itypeOf(item))){ futSkip++; return; }
       const c = normCode(item.code);
       if(!c){ if(String(item.code||'').trim()) miss++; return; }
       const q = map[c];
@@ -1604,7 +1874,7 @@ async function refreshQuotes(scope){
     if(scope==='hold' || scope==='all') DB.holdings.forEach(upd);
     if(scope==='watch' || scope==='all') DB.watches.forEach(upd);
     save();
-    const msg = `✓ 已更新 ${hit} 只${miss?'，'+miss+' 只未取到':''}`;
+    const msg = `✓ 已更新 ${hit} 只${miss?'，'+miss+' 只未取到':''}${futSkip?'，'+futSkip+' 个期货请手动填价':''}`;
     if(statusEl) statusEl.textContent = msg;
     if(App.cur==='hold') renderHold();
     if(App.cur==='pre') renderPre();
@@ -1721,6 +1991,12 @@ function init(){
   $('r_date').value = todayStr();
   $('r_date').addEventListener('change', renderPost);
   ['s_from','s_to'].forEach(id=>$(id).addEventListener('change', renderStats));
+  $('s_itype').addEventListener('click', e=>{
+    const c = e.target.closest('.chip'); if(!c) return;
+    statType = c.dataset.v;
+    $('s_itype').querySelectorAll('.chip').forEach(x=>x.classList.toggle('on', x===c));
+    renderStats();
+  });
   chipInit('p_market', false);
   chipInit('p_cycle', false);
   App.go('pre');

@@ -1,6 +1,6 @@
 /* 交易复盘 PWA Service Worker
    策略：应用壳缓存优先，行情接口始终走网络 */
-const CACHE = 'trade-journal-v2';
+const CACHE = 'trade-journal-v3';
 const ASSETS = [
   './',
   './index.html',
