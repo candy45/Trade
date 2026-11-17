@@ -1,2007 +1,1233 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0d1117">
-<link rel="manifest" href="manifest.json">
-<meta name="mobile-web-app-capable" content="yes">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>交易日志</title>
+<meta name="theme-color" content="#0b0d12">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="交易复盘">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" type="image/png" href="icon-192.png">
-<title>交易复盘 · 私人账本</title>
+<link rel="manifest" href="manifest.json">
 <style>
 :root{
-  --bg:#0d1117; --bg2:#131a24; --card:#161d27; --card2:#1c242f;
-  --line:#26303d; --line2:#33404f;
-  --txt:#e6edf3; --txt2:#9aa7b4; --txt3:#6b7a8c;
-  --up:#ff4d4f; --down:#26a65b; --accent:#4a9eff; --accent2:#2d7dd2;
-  --warn:#f0a020; --ok:#26a65b; --radius:12px;
-  --shadow:0 4px 24px rgba(0,0,0,.4);
+  --bg:#0b0d12; --bg2:#101318; --card:#151922; --card2:#1b2029;
+  --line:#232936; --txt:#e8ecf3; --txt2:#98a1b2; --txt3:#6b7488;
+  --gold:#d8a657; --gold-d:rgba(216,166,87,.14); --gold-l:rgba(216,166,87,.35);
+  --red:#e5484d; --green:#2fa36b; --blue:#5b9dff;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0}
-body{
-  background:var(--bg); color:var(--txt);
-  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-  font-size:15px; line-height:1.6; padding-bottom:80px;
-}
-a{color:var(--accent);text-decoration:none}
-input,select,textarea,button{font-family:inherit;font-size:15px}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:15px;line-height:1.55;overscroll-behavior-y:none}
+button{font-family:inherit;border:0;background:none;color:inherit;padding:0;cursor:pointer}
+input,textarea{font-family:inherit;font-size:15px;color:var(--txt);background:none;border:0;outline:none;width:100%}
+::-webkit-scrollbar{width:0;height:0}
 
-/* ---------- Layout ---------- */
-.wrap{max-width:780px;margin:0 auto;padding:0 14px}
-header.top{
-  position:sticky;top:0;z-index:50;background:rgba(13,17,23,.92);
-  backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
-}
-.top-inner{max-width:780px;margin:0 auto;padding:12px 14px;display:flex;align-items:center;gap:10px}
-.logo{font-weight:700;font-size:17px;letter-spacing:.3px}
-.logo span{color:var(--accent)}
-.top-spacer{flex:1}
-.icon-btn{
-  background:var(--card);border:1px solid var(--line);color:var(--txt2);
-  width:36px;height:36px;border-radius:9px;cursor:pointer;display:grid;place-items:center;
-  font-size:15px;transition:.15s;flex:none;
-}
-.icon-btn:hover{background:var(--card2);color:var(--txt);border-color:var(--line2)}
+#app{max-width:600px;margin:0 auto;position:relative;min-height:100dvh}
 
-/* ---------- Tabs ---------- */
-nav.tabs{
-  position:fixed;bottom:0;left:0;right:0;z-index:60;
-  background:rgba(19,26,36,.96);backdrop-filter:blur(14px);
-  border-top:1px solid var(--line);padding:6px 0 calc(6px + env(safe-area-inset-bottom));
-}
-.tabs-inner{max-width:780px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
-.tab{
-  background:none;border:none;color:var(--txt3);cursor:pointer;
-  padding:7px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;
-  font-size:11px;transition:.15s;border-radius:10px;
-}
-.tab .ti{font-size:19px;line-height:1}
-.tab.active{color:var(--accent)}
-.tab.active .ti{transform:translateY(-1px)}
-
-/* ---------- Cards ---------- */
-.card{
-  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  padding:16px;margin-bottom:14px;
-}
-.card-t{
-  font-size:13px;font-weight:600;color:var(--txt2);letter-spacing:.6px;
-  text-transform:uppercase;margin:0 0 12px;display:flex;align-items:center;gap:8px;
-}
-.card-t .bar{width:3px;height:14px;background:var(--accent);border-radius:2px;flex:none}
-.card-t .right{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:400;font-size:12px;color:var(--txt3)}
-
-.page-head{margin:18px 0 14px}
-.page-head h1{margin:0 0 4px;font-size:22px;letter-spacing:.3px}
-.page-head p{margin:0;color:var(--txt3);font-size:13px}
-
-/* ---------- Forms ---------- */
-label.f{display:block;font-size:12.5px;color:var(--txt2);margin:0 0 5px;font-weight:500}
-.field{margin-bottom:12px}
-input[type=text],input[type=number],input[type=date],select,textarea{
-  width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--txt);
-  padding:9px 11px;border-radius:9px;outline:none;transition:.15s;
-}
-input:focus,select:focus,textarea:focus{border-color:var(--accent);background:#0f1620}
-textarea{resize:vertical;min-height:70px;line-height:1.6}
-input::placeholder,textarea::placeholder{color:var(--txt3)}
-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7a8c' d='M6 8L2 4h8z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px}
-.row{display:grid;gap:10px}
-.row.c2{grid-template-columns:1fr 1fr}
-.row.c3{grid-template-columns:1fr 1fr 1fr}
-.row.c4{grid-template-columns:repeat(4,1fr)}
-@media(max-width:520px){.row.c4{grid-template-columns:1fr 1fr}}
-
-/* ---------- Buttons ---------- */
-button.btn{
-  background:var(--accent);border:none;color:#fff;padding:10px 18px;border-radius:9px;
-  cursor:pointer;font-weight:600;transition:.15s;
-}
-button.btn:hover{background:var(--accent2)}
-button.btn:active{transform:scale(.98)}
-button.btn.ghost{background:transparent;border:1px solid var(--line2);color:var(--txt2)}
-button.btn.ghost:hover{background:var(--card2);color:var(--txt)}
-button.btn.danger{background:transparent;border:1px solid #4a2226;color:#ff6b6b}
-button.btn.danger:hover{background:#2a1418}
-button.btn.sm{padding:6px 12px;font-size:13px;border-radius:7px}
-.btn-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
-
-/* ---------- Chips ---------- */
-.chips{display:flex;gap:7px;flex-wrap:wrap}
-.chip{
-  background:var(--card2);border:1px solid var(--line);color:var(--txt2);
-  padding:5px 11px;border-radius:20px;cursor:pointer;font-size:13px;transition:.15s;user-select:none;
-}
-.chip:hover{border-color:var(--line2);color:var(--txt)}
-.chip.on{background:rgba(74,158,255,.16);border-color:var(--accent);color:#8ec4ff}
-.chip.on.g{background:rgba(38,166,91,.16);border-color:var(--ok);color:#5ed48c}
-.chip.on.r{background:rgba(255,77,79,.16);border-color:var(--up);color:#ff8b8d}
-
-/* ---------- Slider ---------- */
-.slider-box{display:flex;align-items:center;gap:12px}
-input[type=range]{
-  -webkit-appearance:none;flex:1;height:5px;border-radius:3px;outline:none;
-  background:linear-gradient(90deg,var(--accent) var(--p,50%),var(--line) var(--p,50%));
-}
-input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
-  background:#fff;border:3px solid var(--accent);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4);
-}
-.slider-val{font-weight:700;font-size:19px;min-width:52px;text-align:right;color:var(--accent)}
-
-/* ---------- Lists ---------- */
-.list-item{
-  background:var(--card2);border:1px solid var(--line);border-radius:10px;
-  padding:12px 13px;margin-bottom:9px;position:relative;
-}
-.li-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:6px}
-.li-title{font-weight:600;font-size:15px}
-.li-meta{font-size:12.5px;color:var(--txt3);display:flex;gap:12px;flex-wrap:wrap}
-.li-body{font-size:13.5px;color:var(--txt2);white-space:pre-wrap;word-break:break-word}
-.li-actions{display:flex;gap:7px;margin-top:9px}
-.tag{
-  font-size:11px;padding:2px 8px;border-radius:5px;font-weight:600;letter-spacing:.3px;flex:none;
-}
-.tag.buy{background:rgba(255,77,79,.18);color:#ff8b8d;border:1px solid rgba(255,77,79,.3)}
-.tag.sell{background:rgba(38,166,91,.18);color:#5ed48c;border:1px solid rgba(38,166,91,.3)}
-.tag.n{background:var(--card);color:var(--txt3);border:1px solid var(--line)}
-.tag.typ{background:rgba(74,158,255,.14);border:1px solid rgba(74,158,255,.32);color:#8ec4ff}
-.tag.typ.t-etf{background:rgba(160,120,255,.14);border-color:rgba(160,120,255,.32);color:#c0a5ff}
-.tag.typ.t-ifut{background:rgba(240,160,32,.14);border-color:rgba(240,160,32,.35);color:#f5c168}
-.tag.typ.t-cfut{background:rgba(38,190,180,.13);border-color:rgba(38,190,180,.3);color:#5fd8cc}
-.tag.win{background:rgba(255,77,79,.18);color:#ff8b8d;border:1px solid rgba(255,77,79,.3)}
-.tag.loss{background:rgba(38,166,91,.18);color:#5ed48c;border:1px solid rgba(38,166,91,.3)}
-.empty{text-align:center;color:var(--txt3);padding:28px 10px;font-size:13.5px}
-.empty .ei{font-size:34px;display:block;margin-bottom:8px;opacity:.5}
-
-/* ---------- KPI ---------- */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
-.kpi{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px}
-.kpi .k{font-size:12px;color:var(--txt3);margin-bottom:3px}
-.kpi .v{font-size:20px;font-weight:700;letter-spacing:.2px}
-.kpi .s{font-size:11.5px;color:var(--txt3);margin-top:2px}
-.up{color:var(--up)}
-.down{color:var(--down)}
-.neu{color:var(--txt2)}
-
-/* ---------- Table ---------- */
-.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px}
-table{width:100%;border-collapse:collapse;font-size:13.5px;white-space:nowrap}
-th{
-  text-align:left;color:var(--txt3);font-weight:500;font-size:12px;
-  padding:7px 9px;border-bottom:1px solid var(--line);
-}
-td{padding:9px;border-bottom:1px solid var(--line);}
-tr:last-child td{border-bottom:none}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
-
-/* ---------- Modal ---------- */
-.mask{
-  position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:100;
-  display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px);
-}
-.mask.show{display:flex}
-@media(min-width:640px){.mask{align-items:center}}
-.modal{
-  background:var(--card);border:1px solid var(--line2);border-bottom:none;
-  border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;
-  padding:18px 18px calc(18px + env(safe-area-inset-bottom));animation:up .22s ease;
-}
-@media(min-width:640px){.modal{border-radius:16px;border-bottom:1px solid var(--line2)}}
-@keyframes up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
-.modal-h{display:flex;align-items:center;margin-bottom:16px;gap:10px}
-.modal-h h3{margin:0;font-size:17px;flex:1}
-
-/* ---------- Misc ---------- */
-.hint{font-size:12px;color:var(--txt3);margin-top:5px;line-height:1.5}
-.divider{height:1px;background:var(--line);margin:16px 0}
-.toast{
-  position:fixed;left:50%;bottom:96px;transform:translate(-50%,12px);z-index:200;
-  background:#222c38;border:1px solid var(--line2);color:var(--txt);
-  padding:10px 18px;border-radius:22px;font-size:13.5px;box-shadow:var(--shadow);
-  opacity:0;pointer-events:none;transition:.22s;
-}
-.toast.show{opacity:1;transform:translate(-50%,0)}
-.bar-track{height:7px;background:var(--line);border-radius:4px;overflow:hidden}
-.bar-fill{height:100%;border-radius:4px;transition:width .35s}
-.flex-between{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.sec-title{font-size:12.5px;color:var(--txt3);margin:14px 0 8px;font-weight:600;letter-spacing:.5px}
-.view{display:none}
+/* ---------- 通用 ---------- */
+.view{display:none;min-height:100dvh}
 .view.on{display:block}
-::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
-::-webkit-scrollbar-track{background:transparent}
+.hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:calc(12px + var(--safe-t)) 18px 8px}
+.brand{font-size:19px;font-weight:700;letter-spacing:.4px}
+.brand small{font-size:11px;font-weight:400;color:var(--txt3);margin-left:7px;letter-spacing:0}
+.acts{display:flex;gap:8px}
+.ico{width:34px;height:34px;border-radius:10px;background:var(--card);display:grid;place-items:center;
+  font-size:15px;color:var(--txt2);transition:.15s}
+.ico:active{background:var(--card2);transform:scale(.94)}
+
+.card{background:var(--card);border-radius:14px;padding:14px 15px;margin:0 16px 12px}
+.clabel{font-size:11.5px;color:var(--txt3);letter-spacing:.5px;margin-bottom:9px;
+  display:flex;align-items:center;justify-content:space-between}
+.clabel b{color:var(--gold);font-weight:500;font-size:11px;letter-spacing:0}
+.hint{font-size:11.5px;color:var(--txt3);line-height:1.6}
+
+/* ---------- 日历 ---------- */
+.monbar{display:flex;align-items:center;justify-content:center;gap:6px;padding:0 16px 4px}
+.monbar .m{font-size:16.5px;font-weight:600;letter-spacing:.3px;min-width:118px;text-align:center}
+.monbar button{width:32px;height:32px;border-radius:9px;color:var(--txt2);font-size:18px}
+.monbar button:active{background:var(--card)}
+.statline{padding:0 18px 10px;font-size:11.5px;color:var(--txt3);display:flex;gap:14px;justify-content:center}
+.statline b{color:var(--gold);font-weight:600}
+.wkhead{display:grid;grid-template-columns:repeat(7,1fr);padding:0 12px;margin-bottom:4px}
+.wkhead div{text-align:center;font-size:11px;color:var(--txt3);padding:4px 0}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 12px}
+.cell{height:46px;border-radius:9px;background:transparent;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;position:relative;transition:.12s}
+.cell.pad{pointer-events:none}
+.cell .n{font-size:13px;color:#7d8698;font-variant-numeric:tabular-nums}
+.cell.has{background:#181d27}
+.cell.has .n{color:var(--txt)}
+.cell.today{box-shadow:inset 0 0 0 1.5px var(--gold)}
+.cell.today .n{color:var(--gold);font-weight:600}
+.cell:active{transform:scale(.93)}
+.dots{display:flex;gap:3px;height:4px;align-items:center}
+.dots i{width:4px;height:4px;border-radius:50%;display:block}
+.d-pre{background:var(--gold)}
+.d-post{background:var(--blue)}
+.listhead{display:flex;justify-content:space-between;align-items:baseline;
+  padding:14px 18px 8px;font-size:12px;color:var(--txt3)}
+.listhead span:last-child{color:var(--txt3)}
+.entry{background:var(--card);border-radius:13px;margin:0 16px 9px;padding:12px 14px}
+.entry:active{background:var(--card2)}
+.e-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.e-date{font-size:13px;font-weight:600;letter-spacing:.2px}
+.e-syms{font-size:10.5px;color:var(--gold);letter-spacing:.3px;max-width:52%;text-align:right;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.e-txt{font-size:12.5px;color:var(--txt2);line-height:1.6;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.tag{font-size:10.5px;padding:2px 8px;border-radius:20px;background:#202633;color:#9aa4b6;letter-spacing:.2px}
+.tag.gold{background:var(--gold-d);color:var(--gold)}
+.tag.on{background:rgba(216,166,87,.085);color:#d3c0a0}
+.empty{text-align:center;padding:44px 30px;color:var(--txt3);font-size:12.5px;line-height:1.9}
+.empty .big{font-size:26px;display:block;margin-bottom:10px;opacity:.5}
+
+/* ---------- 详情 ---------- */
+#vDay{padding-bottom:40px}
+.daybar{display:flex;align-items:center;justify-content:space-between;
+  padding:calc(10px + var(--safe-t)) 12px 4px}
+.daybar .back{width:38px;height:38px;display:grid;place-items:center;font-size:22px;color:var(--txt2)}
+.daybar .mid{text-align:center;flex:1}
+.daybar .dt{font-size:16px;font-weight:650;letter-spacing:.3px}
+.daybar .sub{font-size:11px;color:var(--txt3);margin-top:1px}
+.seg{display:flex;background:var(--card);border-radius:11px;padding:3px;margin:12px 16px 16px}
+.seg button{flex:1;padding:8px 0;border-radius:9px;font-size:13px;color:var(--txt3);transition:.18s}
+.seg button.on{background:var(--card2);color:var(--txt);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.seg button.on.pre{color:var(--gold)}
+.seg button.on.post{color:var(--blue)}
+.pane{display:none}
+.pane.on{display:block}
+.symbar{display:flex;flex-wrap:wrap;gap:7px}
+.sym{display:flex;align-items:center;gap:6px;background:#1e2530;border-radius:9px;
+  padding:6px 9px;font-size:12.5px;color:#c3cad6;max-width:100%}
+.sym .c{font-size:10px;color:var(--txt3)}
+.sym .x{color:var(--txt3);font-size:14px;padding-left:2px;line-height:1}
+.sym.plan{border:1px solid rgba(216,166,87,.28)}
+.sym.extra{border:1px dashed rgba(91,157,255,.4)}
+.symadd{display:flex;align-items:center;gap:5px;border-radius:9px;padding:6px 11px;
+  font-size:12.5px;color:var(--gold);background:var(--gold-d);border:1px solid var(--gold-l)}
+.symtag{font-size:9px;padding:0 4px;border-radius:3px;background:rgba(255,255,255,.06);color:var(--txt3)}
+textarea{background:transparent;resize:none;line-height:1.75;min-height:104px;
+  font-size:15px;color:var(--txt);padding:0}
+textarea::placeholder{color:#4d5566}
+.fieldwrap{background:var(--card);border-radius:14px;padding:14px 15px;margin:0 16px 12px}
+.savebar{text-align:center;font-size:10.5px;color:var(--txt3);padding:4px 0 18px;height:26px}
+.savebar.act{color:var(--gold)}
+.tagrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tagrow .tag{position:relative}
+.tag .del{margin-left:5px;color:#5d6577;font-size:11px;padding:0 1px}
+.taginput{width:70px;background:#202633;border-radius:20px;padding:2px 8px;font-size:11px;
+  color:var(--txt);display:none}
+.taginput.on{display:block}
+
+/* ---------- 弹层 ---------- */
+#mask{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;
+  transition:.22s;z-index:60;backdrop-filter:blur(2px)}
+#mask.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:#161b24;
+  border-radius:20px 20px 0 0;padding:18px 18px calc(18px + var(--safe-b));
+  transform:translateY(105%);transition:transform .26s cubic-bezier(.3,.9,.3,1);
+  max-width:600px;margin:0 auto;box-shadow:0 -8px 40px rgba(0,0,0,.5)}
+.sheet.on{transform:translateY(0)}
+.sheet h3{margin:0 0 4px;font-size:15px;font-weight:600}
+.sheet .sub{font-size:11.5px;color:var(--txt3);margin-bottom:14px}
+.sheet .inp{background:#0f141c;border:1px solid var(--line);border-radius:11px;padding:11px 13px;
+  display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.sheet .inp input{font-size:15px}
+.quick{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px}
+.quick .q{font-size:12px;padding:5px 10px;border-radius:8px;background:#1e2530;color:#b6bfcf}
+.btn{background:var(--gold);color:#1a1206;font-weight:600;font-size:14px;border-radius:11px;
+  padding:12px;width:100%;text-align:center}
+.btn:active{opacity:.85}
+.btn.ghost{background:#1e2530;color:var(--txt2);font-weight:400}
+.btn-row{display:flex;gap:9px;margin-top:10px}
+
+/* toast */
+/* ---- 品种块 ---- */
+.items{padding:0 16px}
+.blk{background:var(--card);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.blk .bh{display:flex;align-items:center;gap:7px;padding:13px 14px}
+.blk.mini .bh{padding:12px 14px;cursor:pointer}
+.blk.mini:active{background:var(--card2)}
+.blk .nm{font-size:14px;font-weight:600;letter-spacing:.2px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:40%}
+.blk .cd{font-size:10px;color:var(--txt3);letter-spacing:.3px}
+.blk .sp{flex:1}
+.blk .cv{color:#6b7487;font-size:14px;padding-left:3px;line-height:1}
+.blk .mtags{display:flex;gap:4px;overflow:hidden;max-width:52%;justify-content:flex-end}
+.blk .mtags .tag{white-space:nowrap;flex:none}
+.blk .bd{padding:0 14px}
+.blk .bf{display:flex;gap:8px;padding:2px 14px 13px}
+.blk .save{flex:1;background:rgba(216,166,87,.06);color:var(--gold);font-size:13px;
+  font-weight:600;border-radius:10px;padding:9px 0;letter-spacing:.5px;
+  border:1px solid rgba(216,166,87,.3)}
+.blk .save:active{background:rgba(216,166,87,.18);transform:scale(.99)}
+.blk .del{width:56px;background:#1b2130;color:var(--txt3);font-size:12.5px;border-radius:10px}
+.blk .del:active{background:#232b3a}
+.blk .fd{padding-top:2px}
+.blk .fl{display:block;font-size:10.5px;color:#5f6a7d;letter-spacing:.7px;padding:10px 0 0}
+.blk textarea.ta{min-height:52px;font-size:13.5px;line-height:1.75;padding:5px 0 2px}
+.blk textarea.ta::placeholder,.blk .taginput::placeholder{color:#4d5666}
+.addmore{display:block;width:100%;text-align:center;padding:11px 0;margin:2px 0 10px;
+  border:1px dashed rgba(255,255,255,.12);border-radius:11px;font-size:12.5px;color:#6f7889}
+.addmore:active{background:#161b24;color:var(--gold)}
+.badge{font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.2px;flex:none}
+.badge.plan{background:rgba(216,166,87,.14);color:var(--gold)}
+.badge.extra{background:rgba(91,157,255,.14);color:var(--blue)}
+.src{font-size:9.5px;color:var(--txt3);background:#1b2130;border-radius:4px;padding:1px 4px;margin-right:6px;vertical-align:1px}
+#toast{position:fixed;left:50%;bottom:calc(80px + var(--safe-b));transform:translate(-50%,14px);
+  background:rgba(40,46,58,.96);color:#e8ecf3;font-size:12.5px;padding:9px 16px;border-radius:20px;
+  opacity:0;pointer-events:none;transition:.22s;z-index:90;white-space:nowrap;max-width:88vw}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* 设置 */
+.setrow{display:flex;align-items:center;justify-content:space-between;padding:13px 0;
+  border-bottom:1px solid var(--line);font-size:14px}
+.setrow:last-child{border:0}
+.setrow .v{font-size:12px;color:var(--txt3)}
+.danger{color:var(--red)}
+
+/* 搜索 */
+.searchbar{display:flex;align-items:center;gap:10px;padding:calc(12px + var(--safe-t)) 16px 12px}
+.searchbar .box{flex:1;background:var(--card);border-radius:12px;padding:10px 13px;display:flex;
+  align-items:center;gap:8px}
+.searchbar input{font-size:14px}
+.res{padding:0 16px}
+.res .hit{background:var(--card);border-radius:12px;padding:11px 13px;margin-bottom:8px}
+.res .hit .d{font-size:11px;color:var(--gold);margin-bottom:3px}
+.res .hit .t{font-size:12.5px;color:var(--txt2);line-height:1.6}
+.res mark{background:rgba(216,166,87,.25);color:var(--gold);border-radius:2px;padding:0 1px}
 </style>
 </head>
 <body>
+<div id="app">
 
-<header class="top">
-  <div class="top-inner">
-    <div class="logo">交易<span>复盘</span></div>
-    <div class="top-spacer"></div>
-    <button class="icon-btn" id="installBtn" style="display:none" onclick="doInstall()" title="安装到桌面">安装</button>
-    <button class="icon-btn" onclick="exportData()" title="导出备份">⤓</button>
-    <button class="icon-btn" onclick="openImport()" title="导入备份">⤒</button>
-    <button class="icon-btn" onclick="App.go('stats')" title="统计">◪</button>
-  </div>
-</header>
-
-<div id="backupBanner" style="display:none">
-  <div style="max-width:780px;margin:0 auto;padding:10px 14px">
-    <div style="background:rgba(240,160,32,.12);border:1px solid rgba(240,160,32,.4);border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:13.5px;flex:1;min-width:200px" id="backupBannerText"></span>
-      <button class="btn sm" onclick="exportData()">立即备份</button>
-      <button class="btn ghost sm" onclick="hideBackupBanner(3)">稍后</button>
+  <!-- ============ 日历 ============ -->
+  <section class="view on" id="vCal">
+    <div class="hdr">
+      <div class="brand">交易日志<small>因果，不是盈亏</small></div>
+      <div class="acts">
+        <button class="ico" id="btnToday" title="写今天">✎</button>
+        <button class="ico" id="btnSearch">⌕</button>
+        <button class="ico" id="btnSetting">⋯</button>
+      </div>
     </div>
-  </div>
+    <div class="monbar">
+      <button id="prevM">‹</button>
+      <div class="m" id="monLabel">—</div>
+      <button id="nextM">›</button>
+    </div>
+    <div class="statline" id="statLine"></div>
+    <div class="wkhead"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div></div>
+    <div class="grid" id="calGrid"></div>
+    <div class="listhead"><span id="listTitle">本月记录</span><span id="listCount"></span></div>
+    <div id="calList"></div>
+  </section>
+
+  <!-- ============ 单日 ============ -->
+  <section class="view" id="vDay">
+    <div class="daybar">
+      <button class="back" id="btnBack">‹</button>
+      <div class="mid"><div class="dt" id="dayTitle">—</div><div class="sub" id="daySub"></div></div>
+      <button class="back" id="btnDayMore" style="font-size:16px">⋯</button>
+    </div>
+    <div class="seg">
+      <button id="segPre" class="pre">盘前计划</button>
+      <button id="segPost">收盘复盘</button>
+    </div>
+
+    <!-- 盘前 -->
+    <div class="pane on" id="panePre">
+      <div class="items" id="preItems"></div>
+      <div class="savebar" id="preSaved"></div>
+    </div>
+
+    <!-- 复盘 -->
+    <div class="pane" id="panePost">
+      <div class="items" id="postItems"></div>
+      <div class="savebar" id="postSaved"></div>
+    </div>
+  </section>
+
+  <!-- ============ 搜索 ============ -->
+  <section class="view" id="vSearch">
+    <div class="searchbar">
+      <div class="box"><span style="color:var(--txt3)">⌕</span><input id="qInput" placeholder="搜文本、品种、标签…"></div>
+      <button id="btnQClose" style="font-size:13px;color:var(--txt2)">取消</button>
+    </div>
+    <div class="res" id="qRes"></div>
+  </section>
+
+  <!-- ============ 设置 ============ -->
+  <section class="view" id="vSet">
+    <div class="daybar">
+      <button class="back" id="btnSetBack">‹</button>
+      <div class="mid"><div class="dt">设置</div><div class="sub">数据只存本机</div></div>
+      <div style="width:38px"></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="clabel"><span>数据</span></div>
+      <div class="setrow"><span>记录天数</span><span class="v" id="setDays">0</span></div>
+      <div class="setrow"><span>存储占用</span><span class="v" id="setSize">0 KB</span></div>
+      <div class="setrow"><span>上次备份</span><span class="v" id="setBackup">从未</span></div>
+    </div>
+    <div class="card">
+      <div class="clabel"><span>导出 / 备份</span></div>
+      <div class="btn-row"><button class="btn ghost" id="btnExportJson">导出 JSON</button>
+        <button class="btn ghost" id="btnExportMd">导出 Markdown</button></div>
+      <div class="btn-row"><button class="btn ghost" id="btnImport">导入 JSON</button></div>
+      <div class="hint" style="margin-top:10px">JSON 是给 AI 用的结构化格式；Markdown 是人看的。建议每两周导出一次。</div>
+    </div>
+    <div class="card">
+      <div class="clabel"><span>危险操作</span></div>
+      <div class="setrow"><span class="danger">清空全部数据</span><button class="v danger" id="btnWipe">清空</button></div>
+    </div>
+    <div class="hint" style="text-align:center;padding:22px 30px 40px">
+      交易日志 v1.0 · 离线可用<br>数据存在这台手机的浏览器里，清缓存会丢，记得导出。
+    </div>
+  </section>
 </div>
 
-<div class="wrap">
-
-  <!-- ============ 盘前计划 ============ -->
-  <section class="view" id="v-pre">
-    <div class="page-head">
-      <h1>盘前计划</h1>
-      <p>开盘前定好关注标的与买卖条件，开盘后只做执行</p>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>大盘预判<span class="right" id="preDateLbl"></span></div>
-      <div class="field">
-        <label class="f">隔夜外盘 / 消息面</label>
-        <textarea id="p_overnight" placeholder="美股、A50、商品、政策消息…"></textarea>
-      </div>
-      <div class="field">
-        <label class="f">今日大盘预期</label>
-        <div class="chips" id="p_market">
-          <div class="chip on" data-v="看多">看多</div>
-          <div class="chip" data-v="震荡">震荡</div>
-          <div class="chip" data-v="看空">看空</div>
-        </div>
-      </div>
-      <div class="field">
-        <label class="f">情绪周期</label>
-        <div class="chips" id="p_cycle">
-          <div class="chip" data-v="启动">启动</div>
-          <div class="chip on" data-v="发酵">发酵</div>
-          <div class="chip" data-v="高潮">高潮</div>
-          <div class="chip" data-v="退潮">退潮</div>
-          <div class="chip" data-v="冰点">冰点</div>
-        </div>
-      </div>
-      <div class="row c2">
-        <div class="field"><label class="f">计划总仓位上限 (%)</label><input type="number" id="p_pos" placeholder="60" min="0" max="100"></div>
-        <div class="field"><label class="f">今日最大可开新仓 (只)</label><input type="number" id="p_maxnew" placeholder="2" min="0"></div>
-      </div>
-      <div class="field">
-        <label class="f">主线板块</label>
-        <input type="text" id="p_sector" placeholder="如：AI算力 / 固态电池 / 机器人">
-      </div>
-      <div class="field">
-        <label class="f">今日纪律底线</label>
-        <textarea id="p_rule" placeholder="如：不打板 / 不追高 / 单笔亏损不超2% / 不逆势加仓" style="min-height:52px"></textarea>
-      </div>
-      <div class="btn-row"><button class="btn" onclick="savePlan()">保存今日计划</button></div>
-      <div class="hint" id="planSaved"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>关注标的<span class="right" id="watchCount">0 只</span></div>
-      <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn sm" onclick="openWatch()">+ 添加标的</button>
-        <button class="btn ghost sm" onclick="refreshQuotes('watch')">⟳ 刷新现价</button>
-        <span class="hint" id="watchQuoteStatus" style="margin:0"></span>
-      </div>
-      <div id="watchList"></div>
-    </div>
-  </section>
-
-  <!-- ============ 收盘复盘 ============ -->
-  <section class="view" id="v-post">
-    <div class="page-head">
-      <h1>收盘复盘</h1>
-      <p>记录市场状态与自己的每一笔操作，复盘的是执行而非盈亏</p>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>市场状态<span class="right" id="postDateLbl"></span></div>
-      <div class="btn-row" style="margin-bottom:14px">
-        <button class="btn sm" onclick="fetchMarket(false)">⟳ 抓取行情</button>
-        <span class="hint" id="mktStatus" style="margin:0"></span>
-      </div>
-      <div class="row c2">
-        <div class="field"><label class="f">复盘日期</label><input type="date" id="r_date"></div>
-        <div class="field"><label class="f">上证涨跌 (%)</label><input type="number" id="r_sh" step="0.01" placeholder="0.00"></div>
-      </div>
-      <div class="row c2">
-        <div class="field"><label class="f">创业板指涨跌 (%)</label><input type="number" id="r_cyb" step="0.01" placeholder="0.00"></div>
-        <div class="field"><label class="f">深证成指涨跌 (%)</label><input type="number" id="r_sz" step="0.01" placeholder="0.00"></div>
-      </div>
-      <div class="row c2">
-        <div class="field"><label class="f">两市成交额 (亿)</label><input type="number" id="r_amt" step="1" placeholder="0"></div>
-        <div class="field"><label class="f">涨停家数</label><input type="number" id="r_up" placeholder="0"></div>
-      </div>
-      <div class="row c2">
-        <div class="field"><label class="f">跌停家数</label><input type="number" id="r_dn" placeholder="0"></div>
-        <div class="field"></div>
-      </div>
-      <div class="field">
-        <label class="f">市场情绪</label>
-        <div class="chips" id="r_mood">
-          <div class="chip" data-v="亢奋">亢奋</div>
-          <div class="chip on" data-v="正常">正常</div>
-          <div class="chip" data-v="谨慎">谨慎</div>
-          <div class="chip" data-v="恐慌">恐慌</div>
-        </div>
-      </div>
-      <div class="field">
-        <label class="f">指数状态</label>
-        <div class="chips" id="r_trend">
-          <div class="chip" data-v="上涨趋势">上涨趋势</div>
-          <div class="chip on" data-v="震荡">震荡</div>
-          <div class="chip" data-v="下跌趋势">下跌趋势</div>
-        </div>
-      </div>
-      <div class="field">
-        <label class="f">今日较昨日（放量/缩量）</label>
-        <div class="chips" id="r_vol">
-          <div class="chip" data-v="放量">放量</div>
-          <div class="chip on" data-v="平量">平量</div>
-          <div class="chip" data-v="缩量">缩量</div>
-        </div>
-      </div>
-      <div class="field">
-        <label class="f">主线 / 强势板块</label>
-        <input type="text" id="r_sector" placeholder="如：算力、机器人">
-      </div>
-      <div class="field">
-        <label class="f">市场结论</label>
-        <textarea id="r_concl" placeholder="今天赚钱效应如何？亏钱效应从哪里来？明天要紧的是什么？"></textarea>
-      </div>
-      <div class="field">
-        <label class="f">其他市场备注（ETF / 期货）</label>
-        <textarea id="r_other" placeholder="期现基差、股指期货贴水、商品夜盘、ETF折溢价等" style="min-height:52px"></textarea>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>今日操作<span class="right" id="tradeCount">0 笔</span></div>
-      <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn sm" onclick="openTrade()">+ 记录一笔交易</button>
-      </div>
-      <div id="tradeList"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>纪律打分</div>
-      <div class="field">
-        <label class="f">今日纪律遵守情况（0-10）</label>
-        <div class="slider-box">
-          <input type="range" id="r_score" min="0" max="10" step="1" value="7" oninput="setRange(this)">
-          <div class="slider-val" id="r_score_v">7</div>
-        </div>
-      </div>
-      <div class="field">
-        <label class="f">执行检查项</label>
-        <div class="chips" id="r_check"></div>
-      </div>
-      <div class="field">
-        <label class="f">做对了什么 / 做错了什么</label>
-        <textarea id="r_review" placeholder="只写执行层面：是否按计划？是否情绪化？"></textarea>
-      </div>
-      <div class="field">
-        <label class="f">明日改进一件事</label>
-        <input type="text" id="r_tomorrow" placeholder="只写一件，具体可执行">
-      </div>
-      <div class="btn-row"><button class="btn" onclick="saveReview()">保存今日复盘</button></div>
-      <div class="hint" id="reviewSaved"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>历史复盘<span class="right" id="histCount"></span></div>
-      <div id="histList"></div>
-    </div>
-  </section>
-
-  <!-- ============ 持仓台账 ============ -->
-  <section class="view" id="v-hold">
-    <div class="page-head">
-      <h1>持仓台账</h1>
-      <p>维护当前持仓，自动计算浮动盈亏与总市值</p>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>持仓概览</div>
-      <div class="kpis" id="holdKpis"></div>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>持仓明细<span class="right" id="holdCount">0 只</span></div>
-      <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn sm" onclick="openHold()">+ 添加持仓</button>
-        <button class="btn ghost sm" onclick="refreshQuotes('hold')">⟳ 刷新现价</button>
-        <span class="hint" id="holdQuoteStatus" style="margin:0"></span>
-      </div>
-      <div id="holdList"></div>
-    </div>
-  </section>
-
-  <!-- ============ 统计 ============ -->
-  <section class="view" id="v-stats">
-    <div class="page-head">
-      <h1>统计</h1>
-      <p>用数据看自己的执行力与盈亏结构</p>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>交易统计<span class="right" id="statScope">全部</span></div>
-      <div class="row c3" style="margin-bottom:12px">
-        <div class="field" style="margin:0"><label class="f">起始</label><input type="date" id="s_from"></div>
-        <div class="field" style="margin:0"><label class="f">结束</label><input type="date" id="s_to"></div>
-        <button class="btn ghost" style="align-self:flex-end;margin-bottom:12px" onclick="clearRange()">重置</button>
-      </div>
-      <div class="field" style="margin-bottom:12px"><label class="f">品种筛选</label>
-        <div class="chips" id="s_itype">
-          <div class="chip on" data-v="全部">全部</div>
-          <div class="chip" data-v="股票">股票</div>
-          <div class="chip" data-v="ETF">ETF</div>
-          <div class="chip" data-v="股指期货">股指期货</div>
-          <div class="chip" data-v="商品期货">商品期货</div>
-        </div>
-      </div>
-      <div class="kpis" id="statKpis"></div>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>分品种统计</div>
-      <div id="typeStats"></div>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>纪律分数趋势（近 14 次）</div>
-      <div id="scoreChart"></div>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>盈亏分布</div>
-      <div id="pnlChart"></div>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>复盘习惯</div>
-      <div id="habitBox"></div>
-    </div>
-  </section>
-
-  <!-- ============ 数据 ============ -->
-  <section class="view" id="v-data">
-    <div class="page-head">
-      <h1>数据管理</h1>
-      <p>数据保存在本机浏览器，换设备时用导出 / 导入迁移</p>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>备份与迁移</div>
-      <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn" onclick="exportData()">导出 JSON 备份</button>
-        <button class="btn ghost" onclick="shareBackup()">分享备份（微信/文件）</button>
-        <button class="btn ghost" onclick="openImport()">导入 JSON 备份</button>
-      </div>
-      <div class="hint" id="backupStatus"></div>
-      <div class="hint">导出会下载一个含全部数据的 JSON 文件，妥善保存。导入时选择该文件即可恢复（可选择覆盖或合并）。</div>
-      <div class="divider"></div>
-      <div class="sec-title">演示数据</div>
-      <div class="btn-row">
-        <button class="btn ghost sm" onclick="loadDemo()">载入示例数据</button>
-        <button class="btn danger sm" onclick="wipeAll()">清空全部数据</button>
-      </div>
-      <div class="hint">「载入示例数据」会追加一周的模拟记录，方便你先看效果，可随时清空。</div>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>行情数据源</div>
-      <div class="flex-between" style="margin-bottom:12px">
-        <span style="font-size:13.5px">抓取开关</span>
-        <div class="chips" id="q_enabled">
-          <div class="chip on" data-v="on">开启</div>
-          <div class="chip" data-v="off">关闭</div>
-        </div>
-      </div>
-      <div class="flex-between" style="margin-bottom:14px">
-        <span style="font-size:13.5px">页面打开时自动抓取</span>
-        <div class="chips" id="q_auto">
-          <div class="chip on" data-v="on">开启</div>
-          <div class="chip" data-v="off">关闭</div>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn sm" onclick="fetchMarket(true)">测试指数接口</button>
-        <button class="btn ghost sm" onclick="refreshQuotes('all')">刷新全部现价</button>
-      </div>
-      <div class="hint" id="quoteTestOut" style="margin-top:10px"></div>
-      <div class="hint" style="margin-top:10px">
-        数据来自腾讯行情公开接口（qt.gtimg.cn），无需密钥。<br>
-        · <b>指数与成交额</b>：上证 / 创业板指 / 深证成指涨跌幅 + 两市成交额（沪市 + 深市自动相加）<br>
-        · <b>持仓与关注标的</b>：股票 / ETF 按代码自动刷新现价，浮盈实时重算；<b>期货无公开接口，请手动填价</b>（盈亏按乘数与多空方向自动折算）<br>
-        · 指数面板附沪深300 / 中证500 / 中证1000，即 IF / IC / IM 股指期货标的<br>
-        · 该接口只提供<b>当前最新价</b>，无法回补历史某天的收盘数据，历史日期请手动填。<br>
-        · 本机直连外网，数据不经过任何第三方服务器。
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>存储占用</div>
-      <div id="storageBox"></div>
-    </div>
-    <div class="card">
-      <div class="card-t"><span class="bar"></span>自定义纪律检查项</div>
-      <div class="field"><input type="text" id="newCheck" placeholder="输入新的检查项，如：单笔亏损不超总仓 2%"></div>
-      <div class="btn-row" style="margin-bottom:12px"><button class="btn sm" onclick="addCheck()">添加</button></div>
-      <div id="checkList"></div>
-    </div>
-  </section>
-
-</div>
-
-<nav class="tabs">
-  <div class="tabs-inner">
-    <button class="tab active" data-v="pre" onclick="App.go('pre')"><span class="ti">☀</span>盘前计划</button>
-    <button class="tab" data-v="post" onclick="App.go('post')"><span class="ti">☾</span>收盘复盘</button>
-    <button class="tab" data-v="hold" onclick="App.go('hold')"><span class="ti">▤</span>持仓</button>
-    <button class="tab" data-v="stats" onclick="App.go('stats')"><span class="ti">◪</span>统计</button>
-    <button class="tab" data-v="data" onclick="App.go('data')"><span class="ti">⚙</span>数据</button>
-  </div>
-</nav>
-
-<!-- ============ Modals ============ -->
-<div class="mask" id="mask" onclick="if(event.target===this)closeModal()">
-  <div class="modal" id="modalBody"></div>
-</div>
-
-<div class="toast" id="toast"></div>
+<div id="mask"></div>
+<div class="sheet" id="sheet"></div>
+<div id="toast"></div>
+<input type="file" id="fileIn" accept=".json,application/json" style="display:none">
 
 <script>
-/* =========================================================
-   交易复盘 · 私人账本
-   纯前端单文件，数据存 localStorage
-   ========================================================= */
-
-const KEY = 'trade_journal_v1';
-const DEFAULT_CHECKS = [
-  '按盘前计划执行',
-  '单笔亏损不超过计划上限',
-  '没有情绪化交易',
-  '没有逆势加仓 / 摊薄成本',
-  '仓位在计划范围内',
-  '没有追高买入',
-];
-
-/* ---------------- State ---------------- */
-let DB = {
-  version: 1,
-  plans: {},     // { '2026-10-08': {...} }
-  watches: [],   // 关注标的
-  reviews: {},   // { '2026-10-08': {...} }
-  trades: [],    // 交易记录
-  holdings: [],  // 持仓
-  checks: [...DEFAULT_CHECKS],
-  settings: { qEnabled:'on', qAuto:'on' },   // 行情抓取设置
-};
-
-let editCtx = null;
+/* ============================================================
+   数据层
+   ============================================================ */
+const KEY = 'tradelog.v1';
+const IS_ANDROID = /Android/i.test(navigator.userAgent);
+let DB = { version: 1, days: {}, settings: {} };
 
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
-    if(raw){
-      const d = JSON.parse(raw);
-      DB = Object.assign(DB, d);
-      if(!Array.isArray(DB.checks) || !DB.checks.length) DB.checks = [...DEFAULT_CHECKS];
-      DB.settings = Object.assign({qEnabled:'on', qAuto:'on'}, DB.settings||{});
-    }
-  }catch(e){ console.warn('load fail', e); }
+    if(raw) DB = JSON.parse(raw);
+  }catch(e){ console.warn('读取失败', e); }
+  DB.version = DB.version || 1;
+  DB.days = DB.days || {};
+  DB.settings = DB.settings || {};
 }
-function save(){
-  try{
-    localStorage.setItem(KEY, JSON.stringify(DB));
-  }catch(e){
-    toast('保存失败：存储空间可能已满');
-  }
+function persist(){
+  try{ localStorage.setItem(KEY, JSON.stringify(DB)); }
+  catch(e){ toast('存储空间不足，建议导出备份'); }
 }
 
-/* ---------------- Utils ---------------- */
-const $ = id => document.getElementById(id);
-function todayStr(){
-  const d = new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
-function fmtDate(s){
-  if(!s) return '';
-  const [y,m,d] = s.split('-');
-  return `${y}/${m}/${d}`;
-}
-function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
-function money(v){
-  const n = num(v);
-  const s = Math.abs(n).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
-  return (n<0?'-¥':'¥')+s;
-}
-function pct(v){ return (v>0?'+':'')+num(v).toFixed(2)+'%'; }
-function cls(v){ return v>0?'up':(v<0?'down':'neu'); }
-function esc(s){
-  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+/* ============================================================
+   工具
+   ============================================================ */
+const WD = ['周日','周一','周二','周三','周四','周五','周六'];
+const pad2 = n => String(n).padStart(2,'0');
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function parseD(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function fmtDate(s){ const d=parseD(s); return `${d.getMonth()+1}月${d.getDate()}日 ${WD[d.getDay()]}`; }
+function fmtDateShort(s){ const d=parseD(s); return `${d.getMonth()+1}/${d.getDate()} ${WD[d.getDay()]}`; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function nowHM(){ const d=new Date(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+
+let toastTimer=null;
 function toast(msg){
-  const t = $('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._tm);
-  t._tm = setTimeout(()=>t.classList.remove('show'), 1900);
+  const el=$('toast'); el.textContent=msg; el.classList.add('on');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('on'),1800);
 }
-function setRange(el){
-  const p = (el.value - el.min) / (el.max - el.min) * 100;
-  el.style.setProperty('--p', p+'%');
-  const out = el.parentElement.querySelector('.slider-val');
-  if(out) out.textContent = el.value;
-}
-function blank(v){ return v===undefined || v===null || String(v).trim()===''; }
+const $ = id => document.getElementById(id);
 
-/* ---------- 品种（股票/ETF/股指期货/商品期货） ---------- */
-const ITYPES = ['股票','ETF','股指期货','商品期货'];
-function isFut(t){ return t==='股指期货' || t==='商品期货'; }
-function itypeOf(x){ return (x && x.itype) ? x.itype : '股票'; }
-function typeTag(t){
-  const map = {'股票':'t-stock','ETF':'t-etf','股指期货':'t-ifut','商品期货':'t-cfut'};
-  return `<span class="tag typ ${map[t]||'t-stock'}">${esc(t)}</span>`;
+/* ============================================================
+   单日数据
+   ============================================================ */
+function newItem(o){
+  return Object.assign({id:uid(), name:'', code:'', text:'', market:'', summary:'',
+    tags:[], manual:[], hide:[], open:true, at:0}, o||{});
 }
-function sideClass(s){ return (s==='买入'||s==='开多'||s==='平空'||s==='做多') ? 'buy' : 'sell'; }
-/* 期货盈亏：(平/现价 − 开仓价) × 手数 × 乘数，空单取反 */
-function futPnl(openPx, closePx, qty, mult, dir2){
-  const d = (num(closePx) - num(openPx)) * num(qty) * (num(mult)||1);
-  return dir2==='空' ? -d : d;
-}
-/* 持仓浮盈（统一入口，期货按乘数与方向折算） */
-function holdPnl(h){
-  const c = num(h.cost), p = num(h.price);
-  if(!p || !c) return null;
-  const m = isFut(itypeOf(h)) ? (num(h.mult)||1) : 1;
-  const d = (p - c) * num(h.qty) * m;
-  return h.dir2==='空' ? -d : d;
-}
-/* 品种chips点击后的联动（显示/隐藏期货字段等） */
-function bindTypeToggle(typeId, onChange){
-  const root = $(typeId);
-  if(!root) return;
-  root.addEventListener('click', e=>{
-    const c = e.target.closest('.chip');
-    if(!c) return;
-    setTimeout(()=>onChange(chipGet(typeId)), 0);
-  });
+function itKey(it){ return ((it.name||'')+'|'+(it.code||'')).trim().toLowerCase(); }
+function itBlank(it){ return !((it.name||'').trim() || (it.code||'').trim()); }
+function itLabel(it){ return (it.name||it.code||'').trim() || '未分品种'; }
+function dayItems(d, pane){ return (d && d[pane] && d[pane].items) || []; }
+function findItem(d, pane, id){ return dayItems(d, pane).find(x=>x.id===id); }
+
+function ensureDay(date){
+  if(!DB.days[date]) DB.days[date] = {date, pre:{items:[]}, post:{items:[]}};
+  const d = DB.days[date];
+  d.pre = d.pre || {}; d.post = d.post || {};
+  if(!Array.isArray(d.pre.items)) d.pre.items = [];
+  if(!Array.isArray(d.post.items)) d.post.items = [];
+  if(!Array.isArray(d.post.skip)) d.post.skip = [];
+  migrateDay(d);
+  return d;
 }
 
-/* ------------- Chip groups ------------- */
-function chipInit(rootId, multi){
-  const root = $(rootId);
-  if(!root || root._init) return;
-  root._init = true;
-  root.addEventListener('click', e=>{
-    const c = e.target.closest('.chip');
-    if(!c) return;
-    if(multi){
-      c.classList.toggle('on');
+/* 旧结构（一天一个文本框 + 品种数组）→ 品种块 */
+function migrateDay(d){
+  const p = d.pre, q = d.post;
+  const pTxt = (p.text||'').trim();
+  const pSyms = Array.isArray(p.symbols) ? p.symbols : [];
+  if(!p.items.length && (pTxt || pSyms.length)){
+    if(pSyms.length){
+      pSyms.forEach((x,i)=>p.items.push(newItem({name:x.name||'', code:x.code||'', text:i===0?pTxt:''})));
     }else{
-      root.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
-      c.classList.add('on');
+      p.items.push(newItem({text:pTxt}));
     }
+  }
+  const qM = (q.market||'').trim(), qS = (q.summary||'').trim();
+  const qEx = Array.isArray(q.extra) ? q.extra : [];
+  if(!q.items.length && (qM || qS || qEx.length)){
+    if(qEx.length){
+      qEx.forEach((x,i)=>q.items.push(newItem({name:x.name||'', code:x.code||'', market:i===0?qM:'', summary:i===0?qS:''})));
+    }else{
+      q.items.push(newItem({market:qM, summary:qS}));
+    }
+  }
+  p.text = ''; q.market = ''; q.summary = '';
+  p.symbols = []; q.extra = [];
+}
+
+/* 复盘页：计划里有的品种自动落一条 */
+function syncPost(d){
+  const have = new Set(dayItems(d,'post').map(itKey));
+  dayItems(d,'pre').forEach(x=>{
+    const k = itKey(x);
+    if(itBlank(x) || have.has(k) || (d.post.skip||[]).includes(k)) return;
+    dayItems(d,'post').push(newItem({name:x.name||'', code:x.code||''}));
+    have.add(k);
   });
 }
-function chipGet(rootId){
-  const root = $(rootId);
-  if(!root) return '';
-  const on = [...root.querySelectorAll('.chip.on')].map(x=>x.dataset.v);
-  return on.join('、');
+function inPlan(d, it){
+  if(itBlank(it)) return false;
+  const k = itKey(it);
+  return dayItems(d,'pre').some(x=>itKey(x)===k);
 }
-function chipSet(rootId, val){
-  const root = $(rootId);
-  if(!root) return;
-  const vals = String(val||'').split('、').filter(Boolean);
-  root.querySelectorAll('.chip').forEach(x=>{
-    x.classList.toggle('on', vals.includes(x.dataset.v));
+/* 一天出现过的品种（计划+复盘），去重保序 */
+function daySyms(d){
+  const out = [], seen = new Set();
+  [...dayItems(d,'pre'), ...dayItems(d,'post')].forEach(it=>{
+    if(itBlank(it)) return;
+    const k = itKey(it);
+    if(seen.has(k)) return;
+    seen.add(k); out.push({name:it.name||'', code:it.code||''});
   });
+  return out;
 }
-function chipRender(rootId, items, selected, multi){
-  const root = $(rootId);
-  if(!root) return;
-  const sel = String(selected||'').split('、').filter(Boolean);
-  root.innerHTML = items.map(it=>{
-    const v = typeof it === 'string' ? it : it.v;
-    const c = typeof it === 'string' ? '' : (it.c||'');
-    return `<div class="chip ${sel.includes(v)?'on':''} ${c}" data-v="${esc(v)}">${esc(v)}</div>`;
-  }).join('');
-  root._init = false;
-  chipInit(rootId, multi);
+function postSymbols(d){
+  return dayItems(d,'post').map(it=>Object.assign({}, it, {src: inPlan(d,it) ? 'plan' : 'extra'}));
 }
-function chipAll(rootId, all){
-  const root = $(rootId);
-  if(!root) return;
-  root.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on', all));
+function dayPreview(d){
+  const pre = dayItems(d,'pre').map(x=>(x.text||'').trim()).filter(Boolean);
+  const sum = dayItems(d,'post').map(x=>(x.summary||'').trim()).filter(Boolean);
+  const mkt = dayItems(d,'post').map(x=>(x.market||'').trim()).filter(Boolean);
+  return pre[0] || sum[0] || mkt[0] || '（无正文）';
+}
+function dayHasContent(d){
+  if(!d) return false;
+  const has = pane => dayItems(d,pane).some(it=>!itBlank(it) || (it.text||'').trim()
+    || (it.market||'').trim() || (it.summary||'').trim());
+  return has('pre') || has('post');
+}
+function preFilled(d){ return !!(d && dayItems(d,'pre').some(x=>!itBlank(x) || (x.text||'').trim())); }
+function postFilled(d){ return !!(d && dayItems(d,'post').some(x=>!itBlank(x) || (x.market||'').trim() || (x.summary||'').trim())); }
+
+/* ============================================================
+   标签：词典命中 + 品种名 + 手动
+   ============================================================ */
+const DICT_GROUPS = [
+  { max:2, w:['追高','抄底','割肉','止损','止盈','加仓','减仓','清仓','空仓','满仓','重仓','轻仓',
+             '扛单','锁仓','对冲','移仓','换月','计划外','按计划','纪律','不追高','破位'] },
+  { max:2, w:['情绪化','犹豫','冲动','恐惧','贪婪','侥幸','后悔','焦虑','自信','恐高','上头'] },
+  { max:2, w:['主线','龙头','题材','板块','热点','退潮','发酵','启动','分歧','一致','接力','首板','连板','补涨','补跌'] },
+  { max:2, w:['缩量','放量','平量','普涨','普跌','分化','轮动','跳水','震荡','单边','突破','假突破',
+             '缺口','支撑','压力','新低','新高','冲高回落','低开高走','高开低走','赚钱效应','亏钱效应',
+             '量能不足','成交额','情绪冰点','尾盘','午盘'] },
+  { max:1, w:['基差','升水','贴水','展期','保证金','隔夜','夜盘','期现','逼仓','主力合约','远月','近月','移仓换月'] },
+];
+
+function autoTags(text){
+  const src = String(text||'');
+  if(!src) return [];
+  let t = src;
+  const hits = [];
+  DICT_GROUPS.forEach((g, gi)=>{
+    [...g.w].sort((a,b)=>b.length-a.length).forEach(w=>{
+      if(t.includes(w)){ hits.push({w, gi, pos: src.indexOf(w)}); t = t.split(w).join('　'); }
+    });
+  });
+  hits.sort((a,b)=> a.gi - b.gi || a.pos - b.pos);
+  const cnt = {}, out = [];
+  for(const h of hits){
+    cnt[h.gi] = (cnt[h.gi]||0) + 1;
+    if(cnt[h.gi] > 3) continue;
+    if(out.includes(h.w)) continue;
+    out.push(h.w);
+    if(out.length >= 8) break;
+  }
+  return out;
+}
+/* 单条品种的标签：手动 + 正文自动 */
+function itemTags(it){
+  const text = [(it.text||''), (it.market||''), (it.summary||'')].join(' ');
+  const hide = it.hide || [], manual = it.manual || [];
+  const all = [...manual, ...autoTags(text)];
+  const out = [];
+  all.forEach(t=>{ if(t && !hide.includes(t) && !out.includes(t)) out.push(t); });
+  return out.slice(0,8);
+}
+/* 整页标签：所有品种合并（供日历/搜索/导出用） */
+function computeTags(day, pane){
+  const out = [];
+  dayItems(day, pane).forEach(it=>{
+    itemTags(it).forEach(t=>{ if(!out.includes(t)) out.push(t); });
+  });
+  if(day && day[pane]) day[pane].tags = out;
+  return out;
 }
 
-/* ---------------- Router ---------------- */
-const App = {
-  cur: 'pre',
-  go(v){
-    this.cur = v;
-    document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on', s.id==='v-'+v));
-    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.v===v));
-    window.scrollTo({top:0,behavior:'instant'});
-    if(v==='pre') renderPre();
-    if(v==='post') renderPost();
-    if(v==='hold') renderHold();
-    if(v==='stats') renderStats();
-    if(v==='data') renderData();
-  }
-};
+/* ============================================================
+   视图切换
+   ============================================================ */
+let curView = 'vCal';
+let calYM = todayStr().slice(0,7);
+let curDate = todayStr();
+let curPane = 'pre';
 
-/* =========================================================
-   盘前计划
-   ========================================================= */
-function renderPre(){
-  const d = todayStr();
-  $('preDateLbl').textContent = fmtDate(d);
-  const p = DB.plans[d] || {};
-  $('p_overnight').value = p.overnight || '';
-  $('p_pos').value = p.posLimit ?? '';
-  $('p_maxnew').value = p.maxNew ?? '';
-  $('p_sector').value = p.sector || '';
-  $('p_rule').value = p.rule || '';
-  chipRender('p_market', ['看多','震荡','看空'], p.market || '看多');
-  chipRender('p_cycle', ['启动','发酵','高潮','退潮','冰点'], p.cycle || '发酵');
-  $('planSaved').textContent = p.savedAt ? '上次保存：'+p.savedAt : '';
-
-  // 关注标的
-  const list = $('watchList');
-  $('watchCount').textContent = DB.watches.length + ' 只';
-  if(!DB.watches.length){
-    list.innerHTML = `<div class="empty"><span class="ei">◎</span>还没有关注标的<br>点上方按钮添加今天要盯的票</div>`;
-  }else{
-    list.innerHTML = DB.watches.map(w=>{
-      const chg = w.changePct;
-      const chgHtml = (chg!==undefined && chg!==null && chg!=='')
-        ? `<span class="${cls(num(chg))}" style="font-weight:600">${w.price} <span style="font-size:12px">${pct(chg)}</span></span>`
-        : '';
-      const dirCls = (w.dir==='买入'||w.dir==='做多') ? 'buy' : (w.dir==='观察' ? 'n' : 'sell');
-      return `
-      <div class="list-item">
-        <div class="li-head">
-          ${typeTag(itypeOf(w))}
-          <span class="li-title">${esc(w.name)}</span>
-          <span class="tag n">${esc(w.code||'')}</span>
-          ${w.dir?`<span class="tag ${dirCls}">${esc(w.dir)}</span>`:''}
-          ${chgHtml?`<span style="margin-left:auto">${chgHtml}</span>`:''}
-        </div>
-        <div class="li-body">${w.cond?esc(w.cond):'<span style="color:var(--txt3)">未填写触发条件</span>'}</div>
-        <div class="li-actions">
-          <button class="btn ghost sm" onclick="openWatch('${w.id}')">编辑</button>
-          <button class="btn danger sm" onclick="delWatch('${w.id}')">删除</button>
-        </div>
-      </div>`;}).join('');
-  }
-}
-function savePlan(){
-  const d = todayStr();
-  const now = new Date();
-  DB.plans[d] = {
-    date: d,
-    overnight: $('p_overnight').value.trim(),
-    market: chipGet('p_market'),
-    cycle: chipGet('p_cycle'),
-    posLimit: $('p_pos').value,
-    maxNew: $('p_maxnew').value,
-    sector: $('p_sector').value.trim(),
-    rule: $('p_rule').value.trim(),
-    savedAt: `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
-  };
-  save();
-  $('planSaved').textContent = '已保存 · ' + DB.plans[d].savedAt;
-  toast('今日计划已保存');
-}
-function openWatch(id){
-  const w = id ? DB.watches.find(x=>x.id===id) : null;
-  editCtx = {type:'watch', id};
-  $('modalBody').innerHTML = `
-    <div class="modal-h"><h3>${w?'编辑标的':'添加关注标的'}</h3>
-      <button class="icon-btn" onclick="closeModal()">✕</button></div>
-    <div class="field"><label class="f">品种</label>
-      <div class="chips" id="w_itype">
-        <div class="chip on" data-v="股票">股票</div>
-        <div class="chip" data-v="ETF">ETF</div>
-        <div class="chip" data-v="股指期货">股指期货</div>
-        <div class="chip" data-v="商品期货">商品期货</div>
-      </div>
-    </div>
-    <div class="row c2">
-      <div class="field"><label class="f">名称</label><input type="text" id="w_name" value="${esc(w?.name||'')}" placeholder="如：某某股份 / 300ETF / IF2512"></div>
-      <div class="field"><label class="f">代码</label><input type="text" id="w_code" value="${esc(w?.code||'')}" placeholder="600000 / 510300 / IF2512"></div>
-    </div>
-    <div class="field" id="w_dirWrap"><label class="f">方向</label>
-      <div class="chips" id="w_dir">
-        <div class="chip on" data-v="买入">买入</div>
-        <div class="chip" data-v="卖出">卖出</div>
-        <div class="chip" data-v="观察">观察</div>
-      </div>
-    </div>
-    <div class="field" id="w_dir2Wrap" style="display:none"><label class="f">方向（期货）</label>
-      <div class="chips" id="w_dir2">
-        <div class="chip on" data-v="做多">做多</div>
-        <div class="chip" data-v="做空">做空</div>
-        <div class="chip" data-v="观察">观察</div>
-      </div>
-    </div>
-    <div class="field"><label class="f">触发条件</label>
-      <textarea id="w_cond" placeholder="如：回踩5日线不破，分时走稳后买入 / 高开超5%放弃 / 跌破前低做空">${esc(w?.cond||'')}</textarea>
-    </div>
-    <div class="field"><label class="f">计划仓位 (%)</label><input type="number" id="w_pos" value="${esc(w?.pos||'')}" placeholder="10"></div>
-    <div class="field"><label class="f">止损位 / 卖出条件</label>
-      <input type="text" id="w_stop" value="${esc(w?.stop||'')}" placeholder="如：跌破 12.30 无条件出">
-    </div>
-    <div class="btn-row"><button class="btn" onclick="saveWatch()">保存</button>
-      <button class="btn ghost" onclick="closeModal()">取消</button></div>`;
-  chipInit('w_itype', false); chipInit('w_dir', false); chipInit('w_dir2', false);
-  const upd = ()=>{
-    const fut = isFut(chipGet('w_itype'));
-    $('w_dirWrap').style.display = fut ? 'none' : '';
-    $('w_dir2Wrap').style.display = fut ? '' : 'none';
-  };
-  bindTypeToggle('w_itype', upd);
-  if(w){
-    chipSet('w_itype', itypeOf(w));
-    if(isFut(w.itype)) chipSet('w_dir2', w.dir||'做多');
-    else if(w.dir) chipSet('w_dir', w.dir);
-  }
-  upd();
-  openModal();
-}
-function saveWatch(){
-  const name = $('w_name').value.trim();
-  if(!name){ toast('请填写名称'); return; }
-  const it = chipGet('w_itype') || '股票';
-  const fut = isFut(it);
-  const obj = {
-    name, code: $('w_code').value.trim(),
-    itype: it,
-    dir: fut ? (chipGet('w_dir2')||'做多') : (chipGet('w_dir')||'买入'),
-    cond: $('w_cond').value.trim(),
-    pos: $('w_pos').value, stop: $('w_stop').value.trim(),
-  };
-  if(editCtx.id){
-    const i = DB.watches.findIndex(x=>x.id===editCtx.id);
-    if(i>-1) DB.watches[i] = Object.assign(DB.watches[i], obj);
-  }else{
-    DB.watches.push(Object.assign({id:uid()}, obj));
-  }
-  save(); closeModal(); renderPre(); toast('已保存');
-}
-function delWatch(id){
-  if(!confirm('确认删除该标的？')) return;
-  DB.watches = DB.watches.filter(x=>x.id!==id);
-  save(); renderPre();
+function show(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on', v.id===id));
+  curView = id;
+  window.scrollTo(0,0);
 }
 
-/* =========================================================
-   收盘复盘
-   ========================================================= */
-function renderPost(){
-  const d = $('r_date').value || todayStr();
-  $('r_date').value = d;
-  $('postDateLbl').textContent = fmtDate(d);
-  const r = DB.reviews[d] || {};
-  $('r_sh').value = r.sh ?? '';
-  $('r_cyb').value = r.cyb ?? '';
-  $('r_sz').value = r.sz ?? '';
-  $('r_amt').value = r.amt ?? '';
-  $('r_up').value = r.up ?? '';
-  $('r_dn').value = r.dn ?? '';
-  $('r_sector').value = r.sector || '';
-  $('r_concl').value = r.concl || '';
-  $('r_other').value = r.other || '';
-  $('r_score').value = r.score ?? 7;
-  setRange($('r_score'));
-  $('r_review').value = r.review || '';
-  $('r_tomorrow').value = r.tomorrow || '';
-  chipRender('r_mood', ['亢奋','正常','谨慎','恐慌'], r.mood || '正常');
-  chipRender('r_trend', ['上涨趋势','震荡','下跌趋势'], r.trend || '震荡');
-  chipRender('r_vol', ['放量','平量','缩量'], r.vol || '平量');
-  renderChecks(r.checks || []);
-  $('reviewSaved').textContent = r.savedAt ? '上次保存：'+r.savedAt : '';
-  renderTrades(d);
-  renderHistory();
-}
-function renderChecks(selected){
-  const root = $('r_check');
-  root.innerHTML = DB.checks.map(c=>{
-    const on = selected.includes(c) ? 'on g' : '';
-    return `<div class="chip ${on}" data-v="${esc(c)}">${esc(c)}</div>`;
-  }).join('');
-  root._init = false;
-  chipInit('r_check', true);
-}
-function renderTrades(d){
-  const list = DB.trades.filter(t=>t.date===d).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  $('tradeCount').textContent = list.length + ' 笔';
-  const box = $('tradeList');
+/* ============================================================
+   日历
+   ============================================================ */
+function renderCal(){
+  const [y,m] = calYM.split('-').map(Number);
+  $('monLabel').textContent = `${y}年${m}月`;
+
+  const first = new Date(y, m-1, 1);
+  const offset = (first.getDay()+6)%7;      // 周一为第一列
+  const days = new Date(y, m, 0).getDate();
+  const today = todayStr();
+
+  let html = '';
+  for(let i=0;i<offset;i++) html += '<div class="cell pad"></div>';
+  for(let d=1; d<=days; d++){
+    const ds = `${y}-${pad2(m)}-${pad2(d)}`;
+    const day = DB.days[ds];
+    const has = dayHasContent(day);
+    const cls = ['cell'];
+    if(has) cls.push('has');
+    if(ds===today) cls.push('today');
+    let dots = '';
+    if(has){
+      const a = preFilled(day) ? '<i class="d-pre"></i>' : '';
+      const b = postFilled(day) ? '<i class="d-post"></i>' : '';
+      dots = `<div class="dots">${a}${b}</div>`;
+    }else{
+      dots = '<div class="dots"></div>';
+    }
+    html += `<div class="${cls.join(' ')}" data-d="${ds}"><span class="n">${d}</span>${dots}</div>`;
+  }
+  const total = offset + days;
+  const tail = (7 - total%7)%7;
+  for(let i=0;i<tail;i++) html += '<div class="cell pad"></div>';
+  $('calGrid').innerHTML = html;
+
+  // 统计
+  const list = monthDays(calYM);
+  const preN = list.filter(d=>preFilled(DB.days[d])).length;
+  const postN = list.filter(d=>postFilled(DB.days[d])).length;
+  const streak = calcStreak();
+  $('statLine').innerHTML = `本月 <b>${list.length}</b> 天有记录　盘前 ${preN} · 复盘 ${postN}　连续 <b>${streak}</b> 天`;
+
+  // 列表
+  $('listCount').textContent = list.length ? `${list.length} 天` : '';
   if(!list.length){
-    box.innerHTML = `<div class="empty"><span class="ei">✎</span>今天还没有记录交易<br>建议每笔都记，包括没执行的</div>`;
-    return;
-  }
-  box.innerHTML = list.map(t=>{
-    const p = num(t.pnl);
-    const pcls = p>0?'up':(p<0?'down':'neu');
-    const it = itypeOf(t);
-    const fut = isFut(it);
-    const qtyLbl = fut ? '手' : '股';
-    return `<div class="list-item">
-      <div class="li-head">
-        ${typeTag(it)}
-        <span class="tag ${sideClass(t.side)}">${esc(t.side)}</span>
-        <span class="li-title">${esc(t.name)}</span>
-        <span class="li-meta">${esc(t.code||'')}</span>
-        ${t.time?`<span class="li-meta">${esc(t.time)}</span>`:''}
-        <span style="margin-left:auto" class="li-meta ${pcls}">${t.pnl!==''&&t.pnl!=null?'盈亏 '+money(p):''}</span>
-      </div>
-      <div class="li-meta" style="margin-bottom:6px">
-        <span>${fut?'点位':'价格'} ${esc(t.price||'-')}</span>
-        <span>${fut?'手数':'数量'} ${esc(t.qty||'-')}${qtyLbl}</span>
-        ${fut&&t.mult?`<span>乘数 ${esc(t.mult)}</span>`:''}
-        ${fut&&t.oc==='平仓'&&t.openPrice?`<span>开仓价 ${esc(t.openPrice)}</span>`:''}
-        ${!fut?`<span>仓位 ${esc(t.position||'-')}%</span>`:''}
-        ${t.result?`<span class="tag ${t.result==='盈利'?'win':(t.result==='亏损'?'loss':'n')}">${esc(t.result)}</span>`:''}
-        ${t.isPlan?`<span class="tag n">${esc(t.isPlan)}</span>`:''}
-      </div>
-      ${t.reason?`<div class="li-body">操作理由：${esc(t.reason)}</div>`:''}
-      ${t.note?`<div class="li-body" style="margin-top:4px">备注：${esc(t.note)}</div>`:''}
-      <div class="li-actions">
-        <button class="btn ghost sm" onclick="openTrade('${t.id}')">编辑</button>
-        <button class="btn danger sm" onclick="delTrade('${t.id}')">删除</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-function openTrade(id){
-  const t = id ? DB.trades.find(x=>x.id===id) : null;
-  const d = $('r_date').value || todayStr();
-  editCtx = {type:'trade', id};
-  $('modalBody').innerHTML = `
-    <div class="modal-h"><h3>${t?'编辑交易':'记录一笔交易'}</h3>
-      <button class="icon-btn" onclick="closeModal()">✕</button></div>
-    <div class="field"><label class="f">品种</label>
-      <div class="chips" id="t_itype">
-        <div class="chip on" data-v="股票">股票</div>
-        <div class="chip" data-v="ETF">ETF</div>
-        <div class="chip" data-v="股指期货">股指期货</div>
-        <div class="chip" data-v="商品期货">商品期货</div>
-      </div>
-    </div>
-    <div class="field" id="t_sideWrap"><label class="f">方向</label>
-      <div class="chips" id="t_side">
-        <div class="chip on" data-v="买入">买入</div>
-        <div class="chip" data-v="卖出">卖出</div>
-      </div>
-    </div>
-    <div id="t_futBox" style="display:none">
-      <div class="row c2">
-        <div class="field"><label class="f">开 / 平仓</label>
-          <div class="chips" id="t_oc">
-            <div class="chip on" data-v="开仓">开仓</div>
-            <div class="chip" data-v="平仓">平仓</div>
-          </div>
-        </div>
-        <div class="field"><label class="f">多空方向</label>
-          <div class="chips" id="t_dir2">
-            <div class="chip on" data-v="多">多</div>
-            <div class="chip" data-v="空">空</div>
-          </div>
-        </div>
-      </div>
-      <div class="row c2">
-        <div class="field"><label class="f">合约乘数（元/点）</label><input type="number" id="t_mult" value="${esc(t?.mult||'')}" placeholder="IF/IC/IM=300"></div>
-        <div class="field" id="t_openpxWrap" style="display:none"><label class="f">开仓价（平仓单填）</label><input type="number" id="t_openpx" step="0.01" value="${esc(t?.openPrice||'')}" placeholder="对应的开仓价"></div>
-      </div>
-      <div class="btn-row" id="t_calcRow" style="display:none;margin-bottom:12px">
-        <button class="btn ghost sm" onclick="calcFutPnl()">⚡ 自动算盈亏</button>
-        <span class="hint" style="margin:0">（平仓价−开仓价）×手数×乘数，空单取反</span>
-      </div>
-    </div>
-    <div class="row c2">
-      <div class="field"><label class="f">名称</label><input type="text" id="t_name" value="${esc(t?.name||'')}" placeholder="名称"></div>
-      <div class="field"><label class="f">代码</label><input type="text" id="t_code" value="${esc(t?.code||'')}" placeholder="600000 / 510300 / IF2512"></div>
-    </div>
-    <div class="row c3">
-      <div class="field"><label class="f" id="t_price_lbl">成交价</label><input type="number" id="t_price" step="0.01" value="${esc(t?.price||'')}" placeholder="0.00"></div>
-      <div class="field"><label class="f" id="t_qty_lbl">数量(股)</label><input type="number" id="t_qty" value="${esc(t?.qty||'')}" placeholder="100"></div>
-      <div class="field"><label class="f">时间</label><input type="text" id="t_time" value="${esc(t?.time||'')}" placeholder="09:35"></div>
-    </div>
-    <div class="row c2">
-      <div class="field" id="t_posWrap"><label class="f">仓位 (%)</label><input type="number" id="t_pos" value="${esc(t?.position||'')}" placeholder="10"></div>
-      <div class="field"><label class="f">已实现盈亏 (¥)</label><input type="number" id="t_pnl" step="0.01" value="${esc(t?.pnl??'')}" placeholder="卖出/平仓时填"></div>
-    </div>
-    <div class="field"><label class="f">是否符合计划</label>
-      <div class="chips" id="t_isplan">
-        <div class="chip on" data-v="按计划执行">按计划执行</div>
-        <div class="chip" data-v="临时起意">临时起意</div>
-        <div class="chip" data-v="计划外但有理由">计划外但有理由</div>
-      </div>
-    </div>
-    <div class="field"><label class="f">操作理由</label>
-      <textarea id="t_reason" placeholder="为什么在这个位置做这个动作？" style="min-height:56px">${esc(t?.reason||'')}</textarea>
-    </div>
-    <div class="field"><label class="f">结果</label>
-      <div class="chips" id="t_result">
-        <div class="chip" data-v="盈利">盈利</div>
-        <div class="chip" data-v="亏损">亏损</div>
-        <div class="chip" data-v="持平">持平</div>
-        <div class="chip" data-v="未平仓">未平仓</div>
-      </div>
-    </div>
-    <div class="field"><label class="f">事后评价</label>
-      <textarea id="t_note" placeholder="这笔做得对吗？和盈亏无关，只看是否遵守纪律" style="min-height:52px">${esc(t?.note||'')}</textarea>
-    </div>
-    <div class="btn-row"><button class="btn" onclick="saveTrade()">保存</button>
-      <button class="btn ghost" onclick="closeModal()">取消</button></div>`;
-  chipInit('t_itype', false); chipInit('t_side', false); chipInit('t_oc', false); chipInit('t_dir2', false);
-  chipInit('t_isplan', false); chipInit('t_result', false);
-  const updForm = ()=>{
-    const fut = isFut(chipGet('t_itype'));
-    $('t_sideWrap').style.display = fut ? 'none' : '';
-    $('t_futBox').style.display = fut ? '' : 'none';
-    $('t_posWrap').style.display = fut ? 'none' : '';
-    const isClose = chipGet('t_oc')==='平仓';
-    $('t_openpxWrap').style.display = (fut && isClose) ? '' : 'none';
-    $('t_calcRow').style.display = (fut && isClose) ? 'flex' : 'none';
-    $('t_qty_lbl').textContent = fut ? '手数' : '数量(股)';
-    $('t_price_lbl').textContent = fut ? '成交点位' : '成交价';
-  };
-  bindTypeToggle('t_itype', updForm);
-  bindTypeToggle('t_oc', updForm);
-  if(t){
-    chipSet('t_itype', itypeOf(t));
-    if(isFut(t.itype)){
-      chipSet('t_oc', t.oc||'开仓');
-      chipSet('t_dir2', t.dir2||'多');
-    }else if(t.side) chipSet('t_side', t.side);
-  }
-  if(t?.isPlan) chipSet('t_isplan', t.isPlan);
-  if(t?.result) chipSet('t_result', t.result);
-  updForm();
-  openModal();
-}
-/* 期货平仓自动算盈亏 */
-function calcFutPnl(){
-  const dir2 = chipGet('t_dir2')||'多';
-  const p = num($('t_price').value), o = num($('t_openpx').value);
-  const q = num($('t_qty').value), m = num($('t_mult').value)||1;
-  if(!p || !o || !q){ toast('请先填平仓点位、开仓价、手数'); return; }
-  const v = futPnl(o, p, q, m, dir2);
-  $('t_pnl').value = v.toFixed(2);
-  $('t_pnl').style.borderColor = 'var(--accent)';
-  setTimeout(()=>{ $('t_pnl').style.borderColor=''; }, 1200);
-  toast('已计算：' + money(v));
-}
-function saveTrade(){
-  const name = $('t_name').value.trim();
-  if(!name){ toast('请填写名称'); return; }
-  const d = $('r_date').value || todayStr();
-  const it = chipGet('t_itype') || '股票';
-  const fut = isFut(it);
-  const oc = fut ? (chipGet('t_oc')||'开仓') : '';
-  const dir2 = fut ? (chipGet('t_dir2')||'多') : '';
-  const obj = {
-    date: d,
-    itype: it,
-    side: fut ? oc.slice(0,1) + dir2 : (chipGet('t_side') || '买入'),
-    oc, dir2,
-    mult: fut ? $('t_mult').value : '',
-    openPrice: fut ? $('t_openpx').value : '',
-    name, code: $('t_code').value.trim(),
-    price: $('t_price').value, qty: $('t_qty').value,
-    time: $('t_time').value.trim(),
-    position: fut ? '' : $('t_pos').value,
-    pnl: $('t_pnl').value,
-    isPlan: chipGet('t_isplan'),
-    result: chipGet('t_result'),
-    reason: $('t_reason').value.trim(),
-    note: $('t_note').value.trim(),
-  };
-  if(editCtx.id){
-    const i = DB.trades.findIndex(x=>x.id===editCtx.id);
-    if(i>-1) DB.trades[i] = Object.assign(DB.trades[i], obj);
+    $('calList').innerHTML = `<div class="empty"><span class="big">○</span>这个月还没有记录<br>
+      <button class="tag" style="margin-top:12px;color:var(--gold);background:var(--gold-d);padding:6px 16px" onclick="openDay(todayStr())">写今天的记录</button></div>`;
   }else{
-    DB.trades.push(Object.assign({id:uid()}, obj));
-  }
-  save(); closeModal(); renderPost(); toast('交易已保存');
-}
-function delTrade(id){
-  if(!confirm('确认删除这笔交易记录？')) return;
-  DB.trades = DB.trades.filter(x=>x.id!==id);
-  save(); renderPost();
-}
-function saveReview(){
-  const d = $('r_date').value || todayStr();
-  const now = new Date();
-  DB.reviews[d] = {
-    date: d,
-    sh: $('r_sh').value, cyb: $('r_cyb').value, sz: $('r_sz').value, amt: $('r_amt').value,
-    up: $('r_up').value, dn: $('r_dn').value,
-    mood: chipGet('r_mood'), trend: chipGet('r_trend'), vol: chipGet('r_vol'),
-    sector: $('r_sector').value.trim(),
-    concl: $('r_concl').value.trim(),
-    other: $('r_other').value.trim(),
-    score: $('r_score').value,
-    checks: [...$('r_check').querySelectorAll('.chip.on')].map(x=>x.dataset.v),
-    review: $('r_review').value.trim(),
-    tomorrow: $('r_tomorrow').value.trim(),
-    savedAt: `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
-  };
-  save();
-  $('reviewSaved').textContent = '已保存 · ' + DB.reviews[d].savedAt;
-  renderHistory();
-  toast('复盘已保存');
-}
-function renderHistory(){
-  const dates = Object.keys(DB.reviews).sort().reverse();
-  $('histCount').textContent = dates.length ? dates.length+' 天' : '';
-  const box = $('histList');
-  if(!dates.length){
-    box.innerHTML = `<div class="empty"><span class="ei">▤</span>还没有历史复盘</div>`;
-    return;
-  }
-  box.innerHTML = dates.slice(0,30).map(d=>{
-    const r = DB.reviews[d];
-    const tCount = DB.trades.filter(t=>t.date===d).length;
-    const sh = num(r.sh);
-    const score = num(r.score);
-    const sc = score>=8?'up':(score<=4?'down':'neu');
-    return `<div class="list-item">
-      <div class="li-head">
-        <span class="li-title">${fmtDate(d)}</span>
-        <span class="li-meta ${cls(sh)}">上证 ${pct(sh)}</span>
-        <span class="tag n">${esc(r.mood||'')}</span>
-        <span class="tag n">${esc(r.trend||'')}</span>
-        <span class="li-meta">交易 ${tCount} 笔</span>
-        <span class="li-meta ${sc}" style="margin-left:auto">纪律 ${score}/10</span>
-      </div>
-      ${r.concl?`<div class="li-body">${esc(r.concl)}</div>`:''}
-      ${r.review?`<div class="li-body" style="margin-top:5px;color:var(--txt3)">复盘：${esc(r.review)}</div>`:''}
-      <div class="li-actions">
-        <button class="btn ghost sm" onclick="loadDay('${d}')">载入查看</button>
-        <button class="btn danger sm" onclick="delReview('${d}')">删除</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-function loadDay(d){
-  $('r_date').value = d;
-  App.go('post');
-  toast('已载入 ' + fmtDate(d));
-}
-function delReview(d){
-  if(!confirm('确认删除 '+fmtDate(d)+' 的复盘？该日交易记录会保留。')) return;
-  delete DB.reviews[d];
-  save(); renderPost(); toast('已删除');
-}
-
-/* =========================================================
-   持仓
-   ========================================================= */
-function renderHold(){
-  const hs = DB.holdings;
-  let cost=0, mv=0, pnl=0, hasFut=false;
-  hs.forEach(h=>{
-    const t = itypeOf(h);
-    const fut = isFut(t);
-    if(fut) hasFut = true;
-    const m = fut ? (num(h.mult)||1) : 1;
-    cost += num(h.cost) * num(h.qty) * m;
-    mv   += num(h.price) * num(h.qty) * m;
-    const hp = holdPnl(h);
-    if(hp !== null) pnl += hp;
-  });
-  const pnlPct = cost ? pnl/cost*100 : 0;
-  const win = hs.filter(h=>{ const x = holdPnl(h); return x!==null && x>0; }).length;
-  $('holdKpis').innerHTML = `
-    <div class="kpi"><div class="k">${hasFut?'名义市值':'持仓市值'}</div><div class="v">${money(mv)}</div><div class="s">${hs.length} 只标的${hasFut?'（期货按乘数折算）':''}</div></div>
-    <div class="kpi"><div class="k">${hasFut?'名义成本':'持仓成本'}</div><div class="v">${money(cost)}</div><div class="s">合计投入本金口径</div></div>
-    <div class="kpi"><div class="k">浮动盈亏</div><div class="v ${cls(pnl)}">${money(pnl)}</div><div class="s">占名义成本 ${pct(pnlPct)}</div></div>
-    <div class="kpi"><div class="k">盈利标的</div><div class="v">${win}/${hs.length||0}</div><div class="s">浮盈为正的个数</div></div>`;
-
-  $('holdCount').textContent = hs.length + ' 只';
-  const box = $('holdList');
-  if(!hs.length){
-    box.innerHTML = `<div class="empty"><span class="ei">▤</span>暂无持仓<br>点上方按钮添加</div>`;
-    return;
-  }
-  const rows = hs.map(h=>{
-    const t = itypeOf(h);
-    const fut = isFut(t);
-    const c = num(h.cost), p = num(h.price), q = num(h.qty);
-    const m = fut ? (num(h.mult)||1) : 1;
-    const pl = holdPnl(h);
-    const nc = c * q * m;
-    const plp = (pl!==null && nc) ? pl/nc*100 : null;
-    const chg = h.changePct;
-    const chgTip = (chg!==undefined && chg!==null && chg!=='') ? `<span class="${cls(num(chg))}" style="font-size:11.5px">${pct(chg)}</span>` : '';
-    const dirHtml = fut
-      ? `<span class="tag ${h.dir2==='多'?'buy':'sell'}" style="font-size:10px">${esc(h.dir2||'多')}</span>`
-      : '<span style="color:var(--txt3)">-</span>';
-    return `<tr>
-      <td>${typeTag(t)} ${esc(h.name)}<br><span style="color:var(--txt3);font-size:11.5px">${esc(h.code||'')}</span></td>
-      <td class="num">${dirHtml}</td>
-      <td class="num">${q}${fut?'手':''}</td>
-      <td class="num">${c.toFixed(2)}</td>
-      <td class="num">${p?p.toFixed(2):'-'}<br>${chgTip}</td>
-      <td class="num ${pl===null?'':cls(pl)}">${pl!==null?money(pl):'-'}</td>
-      <td class="num ${plp===null?'':cls(plp)}">${plp!==null?pct(plp):'-'}</td>
-      <td class="num">${num(h.weight)?num(h.weight).toFixed(1)+'%':'-'}</td>
-      <td><button class="btn ghost sm" onclick="openHold('${h.id}')">改</button>
-          <button class="btn danger sm" onclick="delHold('${h.id}')">删</button></td>
-    </tr>`;
-  }).join('');
-  box.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>标的</th><th class="num">方向</th><th class="num">数量</th><th class="num">成本</th><th class="num">现价</th>
-      <th class="num">浮盈</th><th class="num">幅度</th><th class="num">仓位</th><th></th></tr></thead>
-    <tbody>${rows}</tbody></table></div>
-    <div class="hint">股票/ETF 的现价可点「刷新现价」自动更新；期货现价请按行情软件手动填写。浮盈按（现价−成本）×数量×乘数计算，空单自动取反。</div>`;
-}
-function openHold(id){
-  const h = id ? DB.holdings.find(x=>x.id===id) : null;
-  editCtx = {type:'hold', id};
-  $('modalBody').innerHTML = `
-    <div class="modal-h"><h3>${h?'编辑持仓':'添加持仓'}</h3>
-      <button class="icon-btn" onclick="closeModal()">✕</button></div>
-    <div class="field"><label class="f">品种</label>
-      <div class="chips" id="h_itype">
-        <div class="chip on" data-v="股票">股票</div>
-        <div class="chip" data-v="ETF">ETF</div>
-        <div class="chip" data-v="股指期货">股指期货</div>
-        <div class="chip" data-v="商品期货">商品期货</div>
-      </div>
-    </div>
-    <div id="h_futBox" style="display:none">
-      <div class="row c2">
-        <div class="field"><label class="f">多空方向</label>
-          <div class="chips" id="h_dir2">
-            <div class="chip on" data-v="多">多</div>
-            <div class="chip" data-v="空">空</div>
-          </div>
-        </div>
-        <div class="field"><label class="f">合约乘数（元/点）</label><input type="number" id="h_mult" value="${esc(h?.mult||'')}" placeholder="IF/IC/IM=300"></div>
-      </div>
-    </div>
-    <div class="row c2">
-      <div class="field"><label class="f">名称</label><input type="text" id="h_name" value="${esc(h?.name||'')}" placeholder="如：沪深300ETF / IF2512"></div>
-      <div class="field"><label class="f">代码</label><input type="text" id="h_code" value="${esc(h?.code||'')}" placeholder="510300 / IF2512"></div>
-    </div>
-    <div class="row c3">
-      <div class="field"><label class="f" id="h_qty_lbl">数量(股)</label><input type="number" id="h_qty" value="${esc(h?.qty||'')}"></div>
-      <div class="field"><label class="f" id="h_cost_lbl">成本价</label><input type="number" id="h_cost" step="0.001" value="${esc(h?.cost||'')}"></div>
-      <div class="field"><label class="f" id="h_price_lbl">现价</label><input type="number" id="h_price" step="0.01" value="${esc(h?.price||'')}"></div>
-    </div>
-    <div class="row c2">
-      <div class="field" id="h_weightWrap"><label class="f">仓位占比 (%)</label><input type="number" id="h_weight" value="${esc(h?.weight||'')}"></div>
-      <div class="field"><label class="f">止损价</label><input type="number" id="h_stop" step="0.01" value="${esc(h?.stop||'')}"></div>
-    </div>
-    <div class="field"><label class="f">备注</label><input type="text" id="h_note" value="${esc(h?.note||'')}" placeholder="持有逻辑 / 计划"></div>
-    <div class="btn-row"><button class="btn" onclick="saveHold()">保存</button>
-      <button class="btn ghost" onclick="closeModal()">取消</button></div>`;
-  chipInit('h_itype', false); chipInit('h_dir2', false);
-  const updH = ()=>{
-    const fut = isFut(chipGet('h_itype'));
-    $('h_futBox').style.display = fut ? '' : 'none';
-    $('h_weightWrap').style.display = fut ? 'none' : '';
-    $('h_qty_lbl').textContent = fut ? '手数' : '数量(股)';
-    $('h_cost_lbl').textContent = fut ? '开仓点位' : '成本价';
-    $('h_price_lbl').textContent = fut ? '最新点位' : '现价';
-  };
-  bindTypeToggle('h_itype', updH);
-  if(h){
-    chipSet('h_itype', itypeOf(h));
-    if(isFut(h.itype)) chipSet('h_dir2', h.dir2||'多');
-  }
-  updH();
-  openModal();
-}
-function saveHold(){
-  const name = $('h_name').value.trim();
-  if(!name){ toast('请填写名称'); return; }
-  const it = chipGet('h_itype') || '股票';
-  const fut = isFut(it);
-  const obj = {
-    name, code: $('h_code').value.trim(),
-    itype: it,
-    dir2: fut ? (chipGet('h_dir2')||'多') : '',
-    mult: fut ? $('h_mult').value : '',
-    qty: $('h_qty').value, cost: $('h_cost').value, price: $('h_price').value,
-    weight: fut ? '' : $('h_weight').value, stop: $('h_stop').value, note: $('h_note').value.trim(),
-  };
-  if(editCtx.id){
-    const i = DB.holdings.findIndex(x=>x.id===editCtx.id);
-    if(i>-1) DB.holdings[i] = Object.assign(DB.holdings[i], obj);
-  }else{
-    DB.holdings.push(Object.assign({id:uid()}, obj));
-  }
-  save(); closeModal(); renderHold(); toast('已保存');
-}
-function delHold(id){
-  if(!confirm('确认删除该持仓？')) return;
-  DB.holdings = DB.holdings.filter(x=>x.id!==id);
-  save(); renderHold();
-}
-
-/* =========================================================
-   统计
-   ========================================================= */
-function inRange(d){
-  const f = $('s_from').value, t = $('s_to').value;
-  if(f && d < f) return false;
-  if(t && d > t) return false;
-  return true;
-}
-function clearRange(){ $('s_from').value=''; $('s_to').value=''; renderStats(); }
-let statType = '全部';
-function renderStats(){
-  const trades = DB.trades.filter(t=>inRange(t.date) && (statType==='全部' || itypeOf(t)===statType));
-  const closed = trades.filter(t=>t.pnl!=='' && t.pnl!=null && !isNaN(parseFloat(t.pnl)));
-  const wins = closed.filter(t=>num(t.pnl)>0);
-  const losses = closed.filter(t=>num(t.pnl)<0);
-  const total = closed.reduce((s,t)=>s+num(t.pnl),0);
-  const grossWin = wins.reduce((s,t)=>s+num(t.pnl),0);
-  const grossLoss = Math.abs(losses.reduce((s,t)=>s+num(t.pnl),0));
-  const winRate = closed.length ? wins.length/closed.length*100 : 0;
-  const avgWin = wins.length ? grossWin/wins.length : 0;
-  const avgLoss = losses.length ? grossLoss/losses.length : 0;
-  const plRatio = avgLoss ? avgWin/avgLoss : (avgWin>0?999:0);
-  const expVal = closed.length ? total/closed.length : 0;
-  const planOk = trades.filter(t=>t.isPlan==='按计划执行').length;
-  const planRate = trades.length ? planOk/trades.length*100 : 0;
-
-  const reviews = Object.values(DB.reviews).filter(r=>inRange(r.date));
-  const avgScore = reviews.length ? reviews.reduce((s,r)=>s+num(r.score),0)/reviews.length : 0;
-
-  const rangeTxt = ($('s_from').value||$('s_to').value)
-    ? `${$('s_from').value||'起始'} ~ ${$('s_to').value||'今天'}` : '全部';
-  $('statScope').textContent = statType==='全部' ? rangeTxt : `${statType} · ${rangeTxt}`;
-
-  $('statKpis').innerHTML = `
-    <div class="kpi"><div class="k">已平仓交易</div><div class="v">${closed.length}</div><div class="s">共 ${trades.length} 笔记录</div></div>
-    <div class="kpi"><div class="k">总盈亏</div><div class="v ${cls(total)}">${money(total)}</div><div class="s">已实现</div></div>
-    <div class="kpi"><div class="k">胜率</div><div class="v">${winRate.toFixed(1)}%</div><div class="s">${wins.length}胜 / ${losses.length}负</div></div>
-    <div class="kpi"><div class="k">盈亏比</div><div class="v">${plRatio>=999?'∞':plRatio.toFixed(2)}</div><div class="s">均盈 ${money(avgWin)} / 均亏 ${money(avgLoss)}</div></div>
-    <div class="kpi"><div class="k">单笔期望</div><div class="v ${cls(expVal)}">${money(expVal)}</div><div class="s">每笔平均盈亏</div></div>
-    <div class="kpi"><div class="k">执行计划率</div><div class="v">${planRate.toFixed(0)}%</div><div class="s">${planOk}/${trades.length} 笔按计划</div></div>
-    <div class="kpi"><div class="k">平均纪律分</div><div class="v">${avgScore.toFixed(1)}</div><div class="s">${reviews.length} 天复盘</div></div>
-    <div class="kpi"><div class="k">最大单笔盈利</div><div class="v up">${money(closed.length?Math.max(...closed.map(t=>num(t.pnl))):0)}</div><div class="s">最大亏损 ${money(closed.length?Math.min(...closed.map(t=>num(t.pnl))):0)}</div></div>`;
-
-  // 分品种统计（始终基于日期范围内的全部交易，不受上方品种筛选影响）
-  (function(){
-    const all = DB.trades.filter(t=>inRange(t.date));
-    const rows = ITYPES.map(tp=>{
-      const list = all.filter(t=>itypeOf(t)===tp);
-      if(!list.length) return null;
-      const cl = list.filter(t=>t.pnl!=='' && t.pnl!=null && !isNaN(parseFloat(t.pnl)));
-      const w = cl.filter(t=>num(t.pnl)>0);
-      const tot = cl.reduce((s2,t)=>s2+num(t.pnl),0);
-      const wr = cl.length ? w.length/cl.length*100 : 0;
-      return {tp, n:list.length, cn:cl.length, tot, wr};
-    }).filter(Boolean);
-    $('typeStats').innerHTML = rows.length ? rows.map(r=>`
-      <div style="margin-bottom:12px">
-        <div class="flex-between" style="font-size:13px;margin-bottom:4px">
-          <span>${typeTag(r.tp)} <span style="color:var(--txt3)">${r.n} 笔 / 已平仓 ${r.cn}</span></span>
-          <span class="${cls(r.tot)}" style="font-weight:600">${money(r.tot)}</span>
-        </div>
-        <div class="bar-track"><div class="bar-fill" style="width:${r.wr}%;background:${r.wr>=50?'var(--up)':'var(--down)'}"></div></div>
-        <div style="font-size:11.5px;color:var(--txt3);margin-top:3px">胜率 ${r.wr.toFixed(0)}%</div>
-      </div>`).join('')
-      : '<div class="empty">暂无交易记录</div>';
-  })();
-
-  // 纪律分数趋势
-  const sc = Object.values(DB.reviews).filter(r=>inRange(r.date)).sort((a,b)=>a.date.localeCompare(b.date)).slice(-14);
-  if(!sc.length){
-    $('scoreChart').innerHTML = `<div class="empty">暂无复盘数据</div>`;
-  }else{
-    $('scoreChart').innerHTML = sc.map(r=>{
-      const v = num(r.score);
-      const c = v>=8?'var(--up)':(v<=4?'var(--down)':'var(--warn)');
-      return `<div style="margin-bottom:9px">
-        <div class="flex-between" style="font-size:12.5px;margin-bottom:4px">
-          <span style="color:var(--txt3)">${fmtDate(r.date)}</span>
-          <span style="color:${c};font-weight:600">${v}/10</span>
-        </div>
-        <div class="bar-track"><div class="bar-fill" style="width:${v*10}%;background:${c}"></div></div>
+    $('calList').innerHTML = list.slice().reverse().map(ds=>{
+      const d = DB.days[ds];
+      const tags = (computeTags(d,'pre').concat(computeTags(d,'post'))).filter((v,i,a)=>a.indexOf(v)===i).slice(0,3);
+      const syms = daySyms(d).map(x=>x.name||x.code).filter(Boolean).slice(0,3).join(' · ');
+      const preview = dayPreview(d);
+      return `<div class="entry" data-d="${ds}">
+        <div class="e-top"><span class="e-date">${fmtDateShort(ds)}</span>
+          <span class="e-syms">${esc(syms)}</span></div>
+        <div class="e-txt">${esc(preview)}</div>
+        ${tags.length?`<div class="tags">${tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
       </div>`;
     }).join('');
   }
-
-  // 盈亏分布
-  if(!closed.length){
-    $('pnlChart').innerHTML = `<div class="empty">暂无已平仓交易</div>`;
-  }else{
-    // 第一层：盈利 vs 亏损，按笔数与金额
-    const b2 = [
-      {k:'盈利', n:wins.length, tot:grossWin, c:'var(--up)'},
-      {k:'亏损', n:losses.length, tot:-grossLoss, c:'var(--down)'},
-    ];
-    // 第二层：按距平均值的远近分档
-    const b3 = [
-      {k:'大盈利（≥均盈）', n:wins.filter(t=>num(t.pnl)>=avgWin).length, c:'#ff4d4f'},
-      {k:'小盈利', n:wins.filter(t=>num(t.pnl)<avgWin).length, c:'#e06a6c'},
-      {k:'小亏损', n:losses.filter(t=>Math.abs(num(t.pnl))<avgLoss).length, c:'#3fa86a'},
-      {k:'大亏损（≥均亏）', n:losses.filter(t=>Math.abs(num(t.pnl))>=avgLoss).length, c:'#26a65b'},
-    ];
-    let html = '<div class="sec-title">盈亏笔数对比</div>';
-    html += b2.map(b=>{
-      const w = closed.length ? b.n/closed.length*100 : 0;
-      return `<div style="margin-bottom:10px">
-        <div class="flex-between" style="font-size:13px;margin-bottom:4px">
-          <span>${b.k} · ${b.n} 笔</span><span class="${cls(b.tot)}" style="font-weight:600">${money(b.tot)}</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${b.c}"></div></div></div>`;
-    }).join('');
-    html += '<div class="sec-title" style="margin-top:16px">盈利 / 亏损结构</div>';
-    const maxN = Math.max(...b3.map(b=>b.n),1);
-    html += b3.map(b=>{
-      const w = b.n/maxN*100;
-      return `<div style="margin-bottom:10px">
-        <div class="flex-between" style="font-size:13px;margin-bottom:4px">
-          <span style="color:var(--txt2)">${b.k}</span><span style="color:var(--txt3)">${b.n} 笔</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${b.c}"></div></div></div>`;
-    }).join('');
-    $('pnlChart').innerHTML = html;
+}
+function monthDays(ym){
+  return Object.keys(DB.days).filter(d=>d.startsWith(ym) && dayHasContent(DB.days[d])).sort();
+}
+function calcStreak(){
+  // 从今天（或最近有记录的一天）往前数连续记录天数
+  let n=0, d=new Date();
+  for(let i=0;i<400;i++){
+    const s = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    if(dayHasContent(DB.days[s])) n++;
+    else if(i>0) break;      // 今天没写不算断，昨天开始算
+    d.setDate(d.getDate()-1);
   }
-
-  // 复盘习惯
-  const allDates = Object.keys(DB.reviews).sort();
-  const last14 = [];
-  for(let i=13;i>=0;i--){
-    const d = new Date(); d.setDate(d.getDate()-i);
-    const s = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    last14.push(s);
-  }
-  const done = last14.filter(d=>DB.reviews[d]).length;
-  $('habitBox').innerHTML = `
-    <div class="flex-between" style="margin-bottom:10px">
-      <span style="font-size:13.5px">近 14 天复盘完成度</span>
-      <span style="font-weight:700;color:var(--accent)">${done}/14</span>
-    </div>
-    <div class="bar-track" style="height:10px">
-      <div class="bar-fill" style="width:${done/14*100}%;background:var(--accent)"></div>
-    </div>
-    <div class="flex-between" style="margin-top:16px;font-size:13.5px">
-      <span>累计复盘天数</span><span style="font-weight:600">${allDates.length} 天</span>
-    </div>
-    <div class="flex-between" style="margin-top:9px;font-size:13.5px">
-      <span>累计交易记录</span><span style="font-weight:600">${DB.trades.length} 笔</span>
-    </div>
-    <div class="flex-between" style="margin-top:9px;font-size:13.5px">
-      <span>关注标的池</span><span style="font-weight:600">${DB.watches.length} 只</span>
-    </div>
-    <div class="flex-between" style="margin-top:9px;font-size:13.5px">
-      <span>当前持仓</span><span style="font-weight:600">${DB.holdings.length} 只</span>
-    </div>
-    <div class="hint" style="margin-top:14px">连续复盘比单次满分更重要。亏损不可怕，不记录才可怕。</div>`;
+  return n;
 }
 
-/* =========================================================
-   数据管理
-   ========================================================= */
-function renderData(){
-  let bytes = 0;
+/* ============================================================
+   单日详情
+   ============================================================ */
+function openDay(date, pane, push){
+  curDate = date;
+  const d = ensureDay(date);
+  $('dayTitle').textContent = fmtDate(date);
+  const isToday = date === todayStr();
+  const diff = Math.round((parseD(todayStr()) - parseD(date))/86400000);
+  $('daySub').textContent = isToday ? '今天' : (diff===1?'昨天':(diff>1?`${diff} 天前`:''));
+
+  // 默认分段
+  if(!pane){
+    if(isToday){
+      pane = new Date().getHours() >= 15 ? 'post' : 'pre';
+    }else{
+      pane = postFilled(d) ? 'post' : 'pre';
+    }
+    if(preFilled(d) && !postFilled(d)) pane = 'pre';
+  }
+  setPane(pane);
+
+  renderItems('pre'); renderItems('post');
+  updateSavedLabel('pre'); updateSavedLabel('post');
+
+  $('btnBack').onclick = goCal;
+  show('vDay');
+  if(push===false) history.replaceState({v:'day', date}, '', '#/d/'+date);
+  else history.pushState({v:'day', date}, '', '#/d/'+date);
+}
+function setPane(p){
+  curPane = p;
+  $('panePre').classList.toggle('on', p==='pre');
+  $('panePost').classList.toggle('on', p==='post');
+  $('segPre').className = 'pre' + (p==='pre' ? ' on' : '');
+  $('segPost').className = 'post' + (p==='post' ? ' on' : '');
+  if(p==='post') renderItems('post');   // 补上计划里新增的品种
+}
+function goCal(){
+  renderCal();
+  show('vCal');
+  history.replaceState({v:'cal'}, '', '#/');
+}
+
+/* ============================================================
+   品种块渲染
+   ============================================================ */
+function tagsHtml(pane, it, tags){
+  return tags.map(t=>`<span class="tag on">${esc(t)}<span class="del" data-deltag="${pane}:${it.id}" data-t="${esc(t)}">×</span></span>`).join('')
+    + `<button class="tag" data-addtag="${pane}:${it.id}" style="color:var(--txt3)">＋ 标签</button>
+       <input class="taginput" id="ti_${it.id}" placeholder="输入标签" maxlength="8">`;
+}
+
+function itemHtml(pane, d, it){
+  const label = itLabel(it);
+  const tags = itemTags(it);
+  let badge = '';
+  if(pane==='post' && !itBlank(it)){
+    badge = inPlan(d, it) ? '<span class="badge plan">计划</span>' : '<span class="badge extra">计划外</span>';
+  }
+  const head = `<div class="bh">
+      <span class="nm">${esc(label)}</span>
+      ${it.code && it.name ? `<span class="cd">${esc(it.code)}</span>` : ''}
+      ${badge}<span class="sp"></span>
+      <span class="mtags">${tags.slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</span>
+      ${it.open ? '' : '<span class="cv">⌄</span>'}
+    </div>`;
+
+  if(!it.open) return `<div class="blk mini" data-fold="${pane}:${it.id}">${head}</div>`;
+
+  const body = pane==='pre'
+    ? `<div class="fd"><span class="fl">今日计划</span>
+         <textarea class="ta" data-f="text" data-id="${it.id}" placeholder="这个品种今天准备怎么做？&#10;例：回踩 4100 不破开多 1 手，跌破 4080 止损。">${esc(it.text||'')}</textarea></div>`
+    : `<div class="fd"><span class="fl">市场复盘</span>
+         <textarea class="ta" data-f="market" data-id="${it.id}" placeholder="这个品种今天怎么走的？&#10;开盘、量能、关键价位、有没有诱多。">${esc(it.market||'')}</textarea></div>
+       <div class="fd"><span class="fl">操作总结</span>
+         <textarea class="ta" data-f="summary" data-id="${it.id}" placeholder="我做了什么，对在哪、错在哪。&#10;按计划了吗？没按是为什么。">${esc(it.summary||'')}</textarea></div>`;
+
+  return `<div class="blk">
+      ${head}
+      <div class="bd">${body}</div>
+      <div class="tagrow" id="tg_${it.id}" style="padding:0 14px 9px">${tagsHtml(pane, it, tags)}</div>
+      <div class="bf">
+        <button class="save" data-save="${pane}:${it.id}">保存</button>
+        <button class="del" data-delitem="${pane}:${it.id}">删除</button>
+      </div>
+    </div>`;
+}
+
+function renderItems(pane){
+  const d = ensureDay(curDate);
+  if(pane==='post') syncPost(d);
+  const box = pane==='pre' ? $('preItems') : $('postItems');
+  const list = dayItems(d, pane);
+  if(!list.length){
+    box.innerHTML = `<div class="empty" style="padding:36px 22px">
+        <span class="big">＋</span>
+        ${pane==='pre' ? '先加一个今天要看的品种' : '计划里的品种会自动出现在这里'}
+        <br><button class="btn" style="margin-top:16px;padding:9px 22px;font-size:13px" data-add="${pane}">添加品种</button>
+      </div>`;
+    return;
+  }
+  box.innerHTML = list.map(it=>itemHtml(pane, d, it)).join('')
+    + `<button class="addmore" data-add="${pane}">＋ 添加品种</button>`;
+  box.querySelectorAll('textarea.ta').forEach(grow);
+}
+
+function renderTagIn(pane, it, force){
+  const el = $('tg_'+it.id);
+  if(!el) return;
+  const ae = document.activeElement;
+  if(!force && ae && ae.id === 'ti_'+it.id) return;   // 正在输入标签，别动
+  el.innerHTML = tagsHtml(pane, it, itemTags(it));
+}
+
+/* ============================================================
+   保存（防抖）
+   ============================================================ */
+const timers = {};
+function scheduleSave(pane, it){
+  const d = ensureDay(curDate);
+  d[pane].at = Date.now();
+  if(it) it.at = Date.now();
+  const bar = pane==='pre' ? $('preSaved') : $('postSaved');
+  bar.textContent = '保存中…';
+  bar.classList.add('act');
+  clearTimeout(timers[pane]);
+  timers[pane] = setTimeout(()=>{
+    if(it) it.tags = itemTags(it);
+    d[pane].tags = computeTags(d, pane);
+    persist();
+    updateSavedLabel(pane);
+  }, 400);
+
+  if(it){
+    clearTimeout(timers[pane+'_'+it.id]);
+    timers[pane+'_'+it.id] = setTimeout(()=>renderTagIn(pane, it), 900);
+  }
+}
+
+/* 保存 = 收起成一行 */
+function saveItem(pane, id){
+  const d = ensureDay(curDate);
+  const it = findItem(d, pane, id);
+  if(!it) return;
+  clearTimeout(timers[pane]);
+  clearTimeout(timers[pane+'_'+id]);
+  it.tags = itemTags(it);
+  it.open = false;
+  d[pane].at = Date.now();
+  d[pane].tags = computeTags(d, pane);
+  persist();
+  renderItems(pane);
+  updateSavedLabel(pane);
+  toast((itBlank(it) ? '已收起' : itLabel(it) + ' 已保存'));
+}
+
+function updateSavedLabel(pane){
+  const d = ensureDay(curDate);
+  const at = d[pane] && d[pane].at;
+  const bar = pane==='pre' ? $('preSaved') : $('postSaved');
+  bar.classList.remove('act');
+  if(!at){ bar.textContent = '边写边存 · 写完点保存收成一行'; return; }
+  const dt = new Date(at);
+  bar.textContent = `已保存 ${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+}
+
+/* ============================================================
+   文本域
+   ============================================================ */
+function grow(el){
+  const min = el.classList.contains('ta') ? 52 : 104;
+  el.style.height = 'auto';
+  el.style.height = Math.max(min, el.scrollHeight) + 'px';
+}
+
+/* ============================================================
+   品种添加
+   ============================================================ */
+function parseSymbol(str){
+  let s = String(str||'').trim().replace(/\s+/g,' ');
+  if(!s) return null;
+  // "沪深300ETF 510300" / "IF2512,if" 形式
+  const m = s.match(/^(.+?)[\s,，]+([A-Za-z0-9]{2,12})$/);
+  if(m) return {id:uid(), name:m[1].trim(), code:m[2].toUpperCase()};
+  // 纯代码
+  if(/^[A-Za-z]{1,3}\d{3,4}$/.test(s) || /^\d{6}$/.test(s)) return {id:uid(), name:s.toUpperCase(), code:''};
+  return {id:uid(), name:s, code:''};
+}
+function freqSymbols(){
+  const map = new Map();
+  Object.values(DB.days).forEach(d=>{
+    [...dayItems(d,'pre'), ...dayItems(d,'post')].forEach(s=>{
+      const k = (s.name||s.code||'').trim();
+      if(!k) return;
+      const cur = map.get(k) || {name:s.name, code:s.code, n:0};
+      cur.n++; map.set(k, cur);
+    });
+  });
+  return [...map.values()].sort((a,b)=>b.n-a.n).slice(0,8);
+}
+function openAddSym(pane){
+  const quick = freqSymbols();
+  const d = ensureDay(curDate);
+  const existing = dayItems(d, pane).filter(x=>!itBlank(x));
+
+  const sheet = $('sheet');
+  sheet.innerHTML = `
+    <h3>添加品种</h3>
+    <div class="sub">期货填合约，如 IF2512、CU2601；ETF 可填 510300 或「沪深300ETF 510300」</div>
+    <div class="inp"><input id="symInput" placeholder="输入名称或代码" autocomplete="off" autocapitalize="characters"></div>
+    ${quick.length?`<div class="clabel" style="margin:4px 0 8px">常用</div>
+      <div class="quick" id="symQuick">${quick.map(q=>`<button class="q" data-sym="${esc(q.name||q.code)}" data-code="${esc(q.code||'')}">${esc(q.name||q.code)}</button>`).join('')}</div>`:''}
+    <div class="btn-row"><button class="btn" id="symOk">添加</button>
+      <button class="btn ghost" id="symCancel">取消</button></div>`;
+  openSheet();
+
+  const input = $('symInput');
+  setTimeout(()=>input.focus(), 120);
+  const add = (raw)=>{
+    const sym = parseSymbol(raw);
+    if(!sym) return;
+    const key = itKey(sym);
+    if(existing.some(x=>itKey(x)===key)){ toast('已经加过了'); return; }
+    if(pane==='post') d.post.skip = (d.post.skip||[]).filter(k=>k!==key);
+    const it = newItem({name:sym.name||'', code:sym.code||'', open:true});
+    dayItems(d, pane).push(it);
+    d[pane].at = Date.now();
+    closeSheet();
+    renderItems(pane);
+    updateSavedLabel(pane);
+    persist();
+    setTimeout(()=>{
+      const box = pane==='pre' ? $('preItems') : $('postItems');
+      const ta = box.querySelector(`textarea[data-id="${it.id}"]`);
+      if(ta){ ta.scrollIntoView({block:'center', behavior:'smooth'}); ta.focus(); }
+    }, 90);
+  };
+  $('symOk').onclick = ()=>add(input.value);
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); add(input.value); } });
+  $('symCancel').onclick = closeSheet;
+  sheet.querySelectorAll('#symQuick .q').forEach(b=>{
+    b.onclick = ()=>add(b.dataset.code ? `${b.dataset.sym} ${b.dataset.code}` : b.dataset.sym);
+  });
+}
+
+/* ============================================================
+   弹层
+   ============================================================ */
+function openSheet(){ $('mask').classList.add('on'); $('sheet').classList.add('on'); }
+function closeSheet(){ $('mask').classList.remove('on'); $('sheet').classList.remove('on'); }
+
+/* ============================================================
+   事件绑定
+   ============================================================ */
+function bindEvents(){
+  // 日历
+  $('prevM').onclick = ()=>{ shiftMonth(-1); };
+  $('nextM').onclick = ()=>{ shiftMonth(1); };
+  $('calGrid').onclick = e=>{
+    const c = e.target.closest('.cell[data-d]');
+    if(c) openDay(c.dataset.d);
+  };
+  $('calList').onclick = e=>{
+    const c = e.target.closest('.entry[data-d]');
+    if(c) openDay(c.dataset.d);
+  };
+
+  // 分段
+  $('segPre').onclick = ()=>setPane('pre');
+  $('segPost').onclick = ()=>setPane('post');
+
+  // 文本框（品种块内，动态渲染，走委托）
+  document.addEventListener('input', e=>{
+    const ta = e.target.closest('textarea.ta[data-id]');
+    if(!ta) return;
+    const pane = ta.closest('#panePre') ? 'pre' : 'post';
+    const d = ensureDay(curDate);
+    const it = findItem(d, pane, ta.dataset.id);
+    if(!it) return;
+    it[ta.dataset.f] = ta.value;
+    grow(ta);
+    scheduleSave(pane, it);
+  });
+
+  // 品种块操作
+  document.addEventListener('click', e=>{
+    const add = e.target.closest('[data-add]');
+    if(add){ openAddSym(add.dataset.add); return; }
+
+    const fold = e.target.closest('[data-fold]');
+    if(fold){
+      const [pane, id] = fold.dataset.fold.split(':');
+      const it = findItem(ensureDay(curDate), pane, id);
+      if(it){
+        it.open = true; persist(); renderItems(pane);
+        setTimeout(()=>{
+          const box = pane==='pre' ? $('preItems') : $('postItems');
+          const ta = box.querySelector(`textarea[data-id="${id}"]`);
+          if(ta) ta.focus();
+        }, 60);
+      }
+      return;
+    }
+
+    const sv = e.target.closest('[data-save]');
+    if(sv){ const [pane, id] = sv.dataset.save.split(':'); saveItem(pane, id); return; }
+
+    const delItem = e.target.closest('[data-delitem]');
+    if(delItem){
+      const [pane, id] = delItem.dataset.delitem.split(':');
+      const d = ensureDay(curDate);
+      const it = findItem(d, pane, id);
+      if(!it) return;
+      const has = ((it.text||'')+(it.market||'')+(it.summary||'')).trim();
+      if(has && !confirm(`删除「${itLabel(it)}」这一条？`)) return;
+      const key = itKey(it);
+      if(pane==='post' && inPlan(d, it)){
+        // 计划里有的品种，复盘里删掉 = 今天不看，别再自动同步回来
+        d.post.skip = [...new Set([...(d.post.skip||[]), key])];
+      }
+      d[pane].items = dayItems(d, pane).filter(x=>x.id!==id);
+      if(pane==='pre'){
+        // 计划删了，复盘里那条空的也一起走
+        d.post.items = dayItems(d,'post').filter(x=>{
+          if(itKey(x)!==key) return true;
+          return !!(((x.market||'')+(x.summary||'')).trim());
+        });
+      }
+      d[pane].at = Date.now();
+      d[pane].tags = computeTags(d, pane);
+      persist(); renderItems(pane); updateSavedLabel(pane);
+      toast('已删除');
+      return;
+    }
+
+    const delTag = e.target.closest('[data-deltag]');
+    if(delTag){
+      const [pane, id] = delTag.dataset.deltag.split(':');
+      const d = ensureDay(curDate);
+      const it = findItem(d, pane, id);
+      if(!it) return;
+      it.hide = [...new Set([...(it.hide||[]), delTag.dataset.t])];
+      persist(); renderTagIn(pane, it);
+      return;
+    }
+
+    const addTag = e.target.closest('[data-addtag]');
+    if(addTag){
+      const [pane, id] = addTag.dataset.addtag.split(':');
+      const inp = $('ti_'+id);
+      if(!inp) return;
+      inp.classList.add('on'); inp.focus();
+      inp.onkeydown = ev=>{
+        if(ev.key==='Enter'){
+          const v = inp.value.trim();
+          if(v){
+            const d = ensureDay(curDate);
+            const it = findItem(d, pane, id);
+            it.manual = [...new Set([...(it.manual||[]), v])];
+            it.hide = (it.hide||[]).filter(x=>x!==v);
+            inp.value = ''; inp.classList.remove('on'); inp.blur();
+            it.tags = itemTags(it);
+            persist(); renderTagIn(pane, it, true);
+          }
+        }
+        if(ev.key==='Escape') inp.classList.remove('on');
+      };
+      inp.onblur = ()=>setTimeout(()=>inp.classList.remove('on'), 150);
+      return;
+    }
+  });
+
+  // 返回
+  $('btnBack').onclick = goCal;
+
+  // 搜索
+  $('btnToday').onclick = ()=>openDay(todayStr());
+  $('btnSearch').onclick = ()=>{ show('vSearch'); history.pushState({v:'search'}, '', '#/search'); setTimeout(()=>$('qInput').focus(),100); };
+  $('btnQClose').onclick = ()=>{ $('qInput').value=''; show('vCal'); };
+  $('qInput').addEventListener('input', e=>renderSearch(e.target.value.trim()));
+
+  // 设置
+  $('btnSetting').onclick = ()=>{ renderSetting(); show('vSet'); history.pushState({v:'set'}, '', '#/set'); };
+  $('btnSetBack').onclick = ()=>show('vCal');
+  $('btnExportJson').onclick = exportJson;
+  $('btnExportMd').onclick = exportMd;
+  $('btnImport').onclick = ()=>$('fileIn').click();
+  $('fileIn').onchange = importJson;
+  $('btnWipe').onclick = wipe;
+
+  $('mask').onclick = closeSheet;
+
+  // 返回键
+  window.addEventListener('popstate', ()=>{
+    if(curView==='vDay' || curView==='vSet' || curView==='vSearch'){ goCal(); }
+  });
+
+  // 左右滑动切日期
+  let sx=0, sy=0, moved=false;
+  const dayView = $('vDay');
+  dayView.addEventListener('touchstart', e=>{
+    if(e.touches.length!==1) return;
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; moved=false;
+  }, {passive:true});
+  dayView.addEventListener('touchmove', e=>{
+    if(e.touches.length!==1) return;
+    const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+    if(Math.abs(dx)>12 && Math.abs(dx)>Math.abs(dy)*1.6) moved = true;
+  }, {passive:true});
+  dayView.addEventListener('touchend', e=>{
+    if(!moved) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    if(Math.abs(dx)<70) return;
+    if(document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    const d = parseD(curDate);
+    d.setDate(d.getDate() + (dx<0 ? 1 : -1));
+    const s = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    openDay(s, curPane, false);
+  });
+}
+function shiftMonth(delta){
+  const [y,m] = calYM.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  calYM = `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+  renderCal();
+}
+
+/* ============================================================
+   搜索
+   ============================================================ */
+function renderSearch(q){
+  const box = $('qRes');
+  if(!q){
+    box.innerHTML = `<div class="empty"><span class="big">⌕</span>搜品种、标签、任何一句话<br>比如「追高」「IF」「缩量」</div>`;
+    return;
+  }
+  const ql = q.toLowerCase();
+  const hits = [];
+  Object.keys(DB.days).sort().reverse().forEach(ds=>{
+    const d = DB.days[ds];
+    if(!dayHasContent(d)) return;
+    const tags = [...computeTags(d,'pre'), ...computeTags(d,'post')].filter((v,i,a)=>a.indexOf(v)===i);
+    const symList = daySyms(d).map(x=>x.name||x.code);
+    const segs = [];
+    dayItems(d,'pre').forEach(it=>{
+      const t = (it.text||'').trim();
+      if(t) segs.push({k:'盘前'+(itBlank(it)?'' : ' · '+itLabel(it)), t});
+    });
+    dayItems(d,'post').forEach(it=>{
+      const mk = (it.market||'').trim(), sm = (it.summary||'').trim();
+      const base = '复盘'+(itBlank(it)?'' : ' · '+itLabel(it));
+      if(mk) segs.push({k:base, t:mk});
+      if(sm) segs.push({k:base+' 总结', t:sm});
+    });
+    const all = [segs.map(x=>x.t).join(' '), tags.join(' '), symList.join(' ')].join(' ');
+    if(!all.toLowerCase().includes(ql)) return;
+    const matched = segs.filter(x=>x.t.toLowerCase().includes(ql));
+    hits.push({ds, tags, syms:symList.join(' '), segs: matched.length?matched:segs.slice(0,1)});
+  });
+  if(!hits.length){ box.innerHTML = `<div class="empty"><span class="big">·</span>没找到「${esc(q)}」</div>`; return; }
+
+  const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  box.innerHTML = hits.slice(0,60).map(h=>{
+    const body = h.segs.map(sg=>{
+      const raw = sg.t.replace(/\s+/g,' ');
+      const i = raw.toLowerCase().indexOf(ql);
+      let snip;
+      if(i>=0){
+        const a = Math.max(0,i-24), b = Math.min(raw.length, i+q.length+54);
+        snip = (a>0?'…':'') + raw.slice(a,b) + (b<raw.length?'…':'');
+      }else{ snip = raw.slice(0,72)+(raw.length>72?'…':''); }
+      const hl = esc(snip).replace(new RegExp(safeQ,'gi'), m=>`<mark>${m}</mark>`);
+      return `<div class="t" style="margin-bottom:5px"><span class="src">${sg.k}</span>${hl}</div>`;
+    }).join('');
+    return `<div class="hit" data-d="${h.ds}">
+      <div class="d">${fmtDateShort(h.ds)}${h.syms?' · '+esc(h.syms).slice(0,38):''}</div>
+      ${body}
+      ${h.tags.length?`<div class="tags">${h.tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.hit').forEach(el=>{
+    el.onclick = ()=>{ $('qInput').value=''; openDay(el.dataset.d); };
+  });
+}
+
+/* ============================================================
+   设置 / 导出 / 导入
+   ============================================================ */
+function renderSetting(){
+  const n = Object.keys(DB.days).filter(d=>dayHasContent(DB.days[d])).length;
+  $('setDays').textContent = n + ' 天';
+  let bytes=0;
   try{ bytes = new Blob([localStorage.getItem(KEY)||'']).size; }catch(e){}
-  // 备份状态
-  const bs = $('backupStatus');
-  if(bs){
-    const d = daysSinceBackup();
-    bs.textContent = d === null
-      ? '尚未备份过。数据仅存于本机浏览器，请养成定期导出的习惯。'
-      : `上次备份：${d===0?'今天':d+' 天前'}。建议每 7 天备份一次。`;
-  }
-  // 行情设置
-  const s = DB.settings || {};
-  chipRender('q_enabled', ['开启','关闭'], s.qEnabled==='off'?'关闭':'开启');
-  chipRender('q_auto', ['开启','关闭'], s.qAuto==='off'?'关闭':'开启');
-  $('q_enabled').onclick = e=>{
-    const c = e.target.closest('.chip'); if(!c) return;
-    DB.settings.qEnabled = c.dataset.v==='开启' ? 'on':'off'; save(); renderData(); toast('已保存');
-  };
-  $('q_auto').onclick = e=>{
-    const c = e.target.closest('.chip'); if(!c) return;
-    DB.settings.qAuto = c.dataset.v==='开启' ? 'on':'off'; save(); renderData(); toast('已保存');
-  };
-  $('storageBox').innerHTML = `
-    <div class="flex-between" style="font-size:13.5px"><span>存储占用</span><span style="font-weight:600">${(bytes/1024).toFixed(1)} KB</span></div>
-    <div class="flex-between" style="font-size:13.5px;margin-top:9px"><span>复盘记录</span><span>${Object.keys(DB.reviews).length} 天</span></div>
-    <div class="flex-between" style="font-size:13.5px;margin-top:9px"><span>交易记录</span><span>${DB.trades.length} 笔</span></div>
-    <div class="flex-between" style="font-size:13.5px;margin-top:9px"><span>关注标的</span><span>${DB.watches.length} 只</span></div>
-    <div class="flex-between" style="font-size:13.5px;margin-top:9px"><span>持仓</span><span>${DB.holdings.length} 只</span></div>`;
-  $('checkList').innerHTML = DB.checks.map((c,i)=>`
-    <div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--line)">
-      <span style="font-size:13.5px">${esc(c)}</span>
-      <button class="btn danger sm" onclick="delCheck(${i})">删除</button>
-    </div>`).join('') || '<div class="hint">暂无检查项</div>';
+  $('setSize').textContent = (bytes/1024).toFixed(1) + ' KB';
+  const last = DB.settings.lastBackupAt;
+  $('setBackup').textContent = last ? timeAgo(last) : '从未';
 }
-function addCheck(){
-  const v = $('newCheck').value.trim();
-  if(!v) return;
-  if(DB.checks.includes(v)){ toast('已存在'); return; }
-  DB.checks.push(v); $('newCheck').value='';
-  save(); renderData(); toast('已添加');
+function timeAgo(iso){
+  const d = Math.floor((Date.now()-new Date(iso).getTime())/86400000);
+  if(d<=0) return '今天';
+  if(d===1) return '昨天';
+  return d + ' 天前';
 }
-function delCheck(i){
-  DB.checks.splice(i,1);
-  save(); renderData();
+function exportPayload(){
+  const days = Object.keys(DB.days).sort().filter(d=>dayHasContent(DB.days[d])).map(ds=>{
+    const d = DB.days[ds];
+    const preItems = dayItems(d,'pre').filter(it=>!itBlank(it) || (it.text||'').trim());
+    const postItems = dayItems(d,'post').filter(it=>!itBlank(it) || (it.market||'').trim() || (it.summary||'').trim());
+    const preTags = computeTags(d,'pre'), postTags = computeTags(d,'post');
+    const joined = (arr, f) => arr.map(it=>`【${itLabel(it)}】${(it[f]||'').trim()}`).filter(x=>x.length>2).join('\n');
+    return {
+      date: ds,
+      pre: {
+        items: preItems.map(it=>({symbol:itLabel(it), code:it.code||'', plan:(it.text||'').trim(), tags:itemTags(it)})),
+        symbols: preItems.filter(it=>!itBlank(it)).map(it=>({name:it.name||'', code:it.code||''})),
+        plan: joined(preItems, 'text'),
+        tags: preTags,
+      },
+      post: {
+        items: postItems.map(it=>({symbol:itLabel(it), code:it.code||'', inPlan:inPlan(d,it),
+          market:(it.market||'').trim(), summary:(it.summary||'').trim(), tags:itemTags(it)})),
+        symbols: postItems.filter(it=>!itBlank(it)).map(it=>({name:it.name||'', code:it.code||'', inPlan:inPlan(d,it)})),
+        market: joined(postItems, 'market'),
+        summary: joined(postItems, 'summary'),
+        tags: postTags,
+      },
+      tags: [...new Set([...preTags, ...postTags, ...daySyms(d).map(x=>x.code||x.name).filter(Boolean)])],
+    };
+  });
+  return {app:'trade-log', version:2, exportedAt:new Date().toISOString(), days};
 }
-function exportData(){
-  const payload = {
-    app: 'trade-journal', version: DB.version,
-    exportedAt: new Date().toISOString(),
-    data: DB,
-  };
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+function download(name, text, mime){
+  const blob = new Blob([text], {type:mime||'text/plain;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `交易复盘备份_${todayStr()}.json`;
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(url), 1500);
-  markBackedUp();
-  toast('已导出备份文件');
+  a.href = url; a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  DB.settings.lastBackupAt = new Date().toISOString();
+  persist();
+  toast('已导出 ' + name);
 }
-function openImport(){
-  $('modalBody').innerHTML = `
-    <div class="modal-h"><h3>导入备份</h3>
-      <button class="icon-btn" onclick="closeModal()">✕</button></div>
-    <div class="field"><label class="f">选择 JSON 备份文件</label>
-      <input type="file" id="impFile" accept=".json,application/json" style="padding:8px"></div>
-    <div class="field"><label class="f">导入方式</label>
-      <div class="chips" id="impMode">
-        <div class="chip on" data-v="合并">合并（同日期以导入的为准）</div>
-        <div class="chip" data-v="覆盖">覆盖（清空现有全部数据）</div>
-      </div>
-    </div>
-    <div class="hint">合并模式：复盘按日期覆盖、交易按 id 去重追加、持仓按 id 去重，不会丢失现有数据。</div>
-    <div class="btn-row" style="margin-top:14px"><button class="btn" onclick="doImport()">开始导入</button>
-      <button class="btn ghost" onclick="closeModal()">取消</button></div>`;
-  chipInit('impMode', false);
-  openModal();
+function exportJson(){
+  const p = exportPayload();
+  download(`交易日志_${todayStr()}.json`, JSON.stringify(p,null,2), 'application/json');
+  renderSetting();
 }
-function doImport(){
-  const f = $('impFile').files[0];
-  if(!f){ toast('请先选择文件'); return; }
-  const mode = chipGet('impMode') || '合并';
+function exportMd(){
+  const p = exportPayload();
+  const lines = ['# 交易日志', `导出时间：${new Date().toLocaleString('zh-CN')}`, ''];
+  p.days.slice().reverse().forEach(d=>{
+    lines.push(`## ${d.date} ${WD[parseD(d.date).getDay()]}`);
+    if(d.pre.items.length){
+      lines.push('', '### 盘前计划');
+      d.pre.items.forEach(it=>{
+        lines.push(`**${it.symbol}**${it.tags.length?'　'+it.tags.map(t=>'`#'+t+'`').join(' '):''}`);
+        if(it.plan) lines.push('', ...it.plan.split('\n').map(x=>'> '+x));
+      });
+    }
+    if(d.post.items.length){
+      lines.push('', '### 收盘复盘');
+      d.post.items.forEach(it=>{
+        lines.push(`**${it.symbol}**${it.inPlan?'':'（计划外）'}${it.tags.length?'　'+it.tags.map(t=>'`#'+t+'`').join(' '):''}`);
+        if(it.market) lines.push('', '市场：', ...it.market.split('\n').map(x=>'> '+x));
+        if(it.summary) lines.push('', '操作：', ...it.summary.split('\n').map(x=>'> '+x));
+      });
+    }
+    if(d.tags.length) lines.push('', d.tags.map(t=>`\`#${t}\``).join(' '));
+    lines.push('', '---', '');
+  });
+  download(`交易日志_${todayStr()}.md`, lines.join('\n'), 'text/markdown;charset=utf-8');
+  renderSetting();
+}
+function importJson(e){
+  const f = e.target.files[0];
+  if(!f) return;
   const rd = new FileReader();
-  rd.onload = e=>{
+  rd.onload = ev=>{
     try{
-      const j = JSON.parse(e.target.result);
-      const d = j.data || j;
-      if(!d || typeof d !== 'object') throw new Error('格式错误');
-      if(mode==='覆盖'){
-        DB = Object.assign({version:1,plans:{},watches:[],reviews:{},trades:[],holdings:[],checks:[...DEFAULT_CHECKS]}, d);
-      }else{
-        DB.plans = Object.assign({}, DB.plans, d.plans||{});
-        DB.reviews = Object.assign({}, DB.reviews, d.reviews||{});
-        const tIds = new Set(DB.trades.map(x=>x.id));
-        (d.trades||[]).forEach(t=>{ if(!tIds.has(t.id)) DB.trades.push(t); });
-        const wIds = new Set(DB.watches.map(x=>x.id));
-        (d.watches||[]).forEach(w=>{ if(!wIds.has(w.id)) DB.watches.push(w); });
-        const hIds = new Set(DB.holdings.map(x=>x.id));
-        (d.holdings||[]).forEach(h=>{ if(!hIds.has(h.id)) DB.holdings.push(h); });
-        if(d.checks && d.checks.length) DB.checks = [...new Set([...DB.checks, ...d.checks])];
-      }
-      save(); closeModal(); App.go(App.cur); toast('导入成功');
+      const j = JSON.parse(ev.target.result);
+      const days = j.days || (j.data && j.data.days);
+      if(!Array.isArray(days)) throw new Error('格式不对');
+      let n = 0;
+      const put = (d, pane, o)=>{
+        const list = dayItems(d, pane);
+        const key = ((o.name||'')+'|'+(o.code||'')).toLowerCase();
+        let it = list.find(x=>itKey(x)===key);
+        if(!it){ it = newItem({name:o.name||'', code:o.code||'', open:false}); list.push(it); }
+        if(o.text) it.text = o.text;
+        if(o.market) it.market = o.market;
+        if(o.summary) it.summary = o.summary;
+      };
+      days.forEach(x=>{
+        if(!x.date) return;
+        const d = ensureDay(x.date);
+        const pre = x.pre || {}, post = x.post || {};
+        if(Array.isArray(pre.items) && pre.items.length){
+          pre.items.forEach(o=>put(d,'pre',{name:o.symbol||o.name||'', code:o.code||'', text:o.plan||o.text||''}));
+        }else{
+          const sy = pre.symbols || [];
+          if(sy.length) sy.forEach((v,i)=>put(d,'pre',{name:v.name||v.code||'', code:v.code||'', text:i===0?(pre.plan||''):''}));
+          else if(pre.plan) put(d,'pre',{text:pre.plan});
+        }
+        if(Array.isArray(post.items) && post.items.length){
+          post.items.forEach(o=>put(d,'post',{name:o.symbol||o.name||'', code:o.code||'', market:o.market||'', summary:o.summary||''}));
+        }else{
+          const sy = post.symbols || [];
+          if(sy.length) sy.forEach((v,i)=>put(d,'post',{name:v.name||v.code||'', code:v.code||'',
+            market:i===0?(post.market||''):'', summary:i===0?(post.summary||''):''}));
+          else if(post.market || post.summary) put(d,'post',{market:post.market||'', summary:post.summary||''});
+        }
+        d.pre.tags = computeTags(d,'pre');
+        d.post.tags = computeTags(d,'post');
+        n++;
+      });
+      persist(); renderCal(); renderSetting();
+      toast(`已导入 ${n} 天`);
     }catch(err){
-      toast('导入失败：文件格式不正确');
+      toast('导入失败：不是有效的备份文件');
       console.warn(err);
     }
   };
   rd.readAsText(f);
+  e.target.value = '';
 }
-function wipeAll(){
-  if(!confirm('确认清空全部数据？此操作不可撤销，建议先导出备份。')) return;
-  if(!confirm('再次确认：所有复盘、交易、持仓记录都会被删除。')) return;
-  localStorage.removeItem(KEY);
-  DB = {version:1,plans:{},watches:[],reviews:{},trades:[],holdings:[],checks:[...DEFAULT_CHECKS]};
-  save(); App.go('data'); toast('已清空');
-}
-function loadDemo(){
-  if(!confirm('将追加一周示例数据（不影响你已有的记录），继续？')) return;
-  const mk = (off)=>{
-    const d = new Date(); d.setDate(d.getDate()-off);
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  };
-  const days = [mk(4),mk(3),mk(2),mk(1)];
-  const shs = [-1.24, 0.42, 0.86, -0.35];
-  const moods = ['谨慎','正常','亢奋','正常'];
-  const trends = ['下跌趋势','震荡','上涨趋势','震荡'];
-  const concls = [
-    '指数缩量下跌，赚钱效应极差，昨日强势股全线补跌，早盘冲高是典型的诱多。今天没买是对的。',
-    '窄幅震荡，量能萎缩，板块轮动快但都不持续，属于典型的磨人行情。空仓等待比乱做更好。',
-    '放量普涨，主线明确，赚钱效应好。敢上仓位才有收益，但我只做了计划的标的。',
-    '冲高回落，尾盘跳水，情绪从亢奋转谨慎。早盘没追高是纪律的胜利。'
-  ];
-  const revs = [
-    '昨天计划里写了"不高开不买"，今天高开3%我却追了，属于计划外操作。虽然没亏，但这是错的。',
-    '全天只做了一笔，其他时间都在看，忍住了三次冲动。这是进步。',
-    '按计划买入了两只，仓位控制在四成，符合纪律。卖点没拿住，属于能力问题不是纪律问题。',
-    '尾盘想抄底但忍住了，因为不符合我的买入条件。收盘看是对的。'
-  ];
-  const scores = [4,7,9,8];
-  days.forEach((d,i)=>{
-    DB.plans[d] = {
-      date:d, overnight:'隔夜美股小幅波动，A50走平，无明显消息刺激。',
-      market: i%3===0?'看空':'看多', cycle: i===0?'退潮':(i===2?'发酵':'启动'),
-      posLimit: i===0?'30':'60', maxNew: i===0?'0':'2',
-      sector:'AI算力、机器人', rule:'不打板 / 单笔亏损不超2% / 不追高',
-      savedAt:'08:5'+(i%5),
-    };
-    DB.reviews[d] = {
-      date:d, sh:shs[i], cyb:(shs[i]*1.3).toFixed(2), amt: 8000+i*300,
-      up: 40+i*15, dn: 12-i*2,
-      mood:moods[i], trend:trends[i], vol: i===1?'缩量':(i===2?'放量':'平量'),
-      sector:'AI算力、机器人、创新药',
-      concl:concls[i], score:scores[i],
-      checks: DEFAULT_CHECKS.slice(0, scores[i]>7?6:3),
-      review:revs[i], tomorrow:'只做计划内标的，盘前把条件写清楚再开盘。',
-      savedAt:'15:2'+i,
-    };
-  });
-  const demoTrades = [
-    {d:0, itype:'股票', side:'买入', name:'特锐德', code:'300001', price:33.20, qty:1000, pnl:'', result:'未平仓', isPlan:'按计划执行', reason:'回踩5日线企稳，量能温和放大', note:'买点符合计划', pos:'18'},
-    {d:0, itype:'股票', side:'卖出', name:'白云机场', code:'600004', price:7.70, qty:500, pnl:-1240.00, result:'亏损', isPlan:'临时起意', reason:'看到冲高追进去，结果被套', note:'追高，违反纪律', pos:'12'},
-    {d:1, itype:'股票', side:'卖出', name:'特锐德', code:'300001', price:33.90, qty:1000, pnl:750.00, result:'盈利', isPlan:'按计划执行', reason:'达到计划目标位，按计划止盈', note:'执行到位', pos:'0'},
-    {d:1, itype:'ETF', side:'买入', name:'沪深300ETF', code:'510300', price:3.92, qty:10000, pnl:'', result:'未平仓', isPlan:'按计划执行', reason:'指数回踩缺口不破，定投式低吸', note:'仓位轻，拿波段', pos:'15'},
-    {d:2, itype:'股票', side:'买入', name:'贵州茅台', code:'600519', price:1520.00, qty:100, pnl:'', result:'未平仓', isPlan:'按计划执行', reason:'板块启动首日，符合打板条件', note:'分时强势，敢于下手', pos:'10'},
-    {d:2, itype:'股指期货', side:'平多', oc:'平仓', dir2:'多', mult:300, openPrice:4100, name:'IF当月连续', code:'IF2512', price:4150, qty:1, pnl:15000.00, result:'盈利', isPlan:'按计划执行', reason:'突破前高后果断止盈，（4150−4100）×1×300', note:'趋势单执行到位'},
-    {d:3, itype:'股票', side:'卖出', name:'贵州茅台', code:'600519', price:1560.00, qty:100, pnl:420.00, result:'盈利', isPlan:'计划外但有理由', reason:'冲高到压力位先减仓一半', note:'减仓合理，不贪', pos:'0'},
-    {d:3, itype:'商品期货', side:'平空', oc:'平仓', dir2:'空', mult:5, openPrice:75000, name:'沪铜主力', code:'CU2501', price:74500, qty:1, pnl:2500.00, result:'盈利', isPlan:'计划外但有理由', reason:'库存数据利空兑现，空单落袋，（75000−74500）×1×5', note:'消息单，跑得快'},
-    {d:3, itype:'股票', side:'买入', name:'工商银行', code:'601398', price:6.20, qty:800, pnl:'', result:'未平仓', isPlan:'临时起意', reason:'朋友推荐，看着不错', note:'听消息买入，不是好习惯', pos:'12'},
-  ];
-  demoTrades.forEach(t=>{
-    DB.trades.push({
-      id:uid(), date:days[t.d], itype:t.itype||'股票', side:t.side,
-      oc:t.oc||'', dir2:t.dir2||'', mult:t.mult||'', openPrice:t.openPrice||'',
-      name:t.name, code:t.code,
-      price:t.price, qty:t.qty, time: (t.side==='买入'||t.side==='开多')?'09:4'+Math.floor(Math.random()*9):'14:5'+Math.floor(Math.random()*9),
-      position:t.pos||'', pnl:t.pnl, isPlan:t.isPlan, result:t.result,
-      reason:t.reason, note:t.note,
-    });
-  });
-  DB.watches.push(
-    {id:uid(), itype:'股票', name:'特锐德', code:'300001', dir:'买入', cond:'若回踩 18.00 不破且分时企稳，买入 2 成仓', pos:'20', stop:'跌破 17.60 止损'},
-    {id:uid(), itype:'ETF', name:'科创50ETF', code:'588000', dir:'观察', cond:'放量站上 5 日线再加仓，否则不动', pos:'10', stop:'跌破 0.92'},
-    {id:uid(), itype:'股指期货', name:'IF当月连续', code:'IF2512', dir:'买入', cond:'沪深300放量突破前高则开多 1 手，突破失败不做', pos:'', stop:'跌破 4080 止损'}
-  );
-  DB.holdings = [
-    {id:uid(), itype:'股票', name:'特锐德', code:'300001', qty:1000, cost:32.00, price:'', weight:'18', stop:30.00, note:'中线持有，等板块发酵'},
-    {id:uid(), itype:'股票', name:'白云机场', code:'600004', qty:800, cost:7.90, price:'', weight:'12', stop:7.50, note:'听消息买入，需重新评估'},
-    {id:uid(), itype:'ETF', name:'沪深300ETF', code:'510300', qty:10000, cost:3.92, price:'', weight:'15', stop:3.80, note:'指数波段底仓'},
-    {id:uid(), itype:'股指期货', name:'IF当月连续', code:'IF2512', dir2:'多', mult:300, qty:1, cost:4120, price:'', note:'趋势多单，破位就走'},
-  ];
-  save(); App.go(App.cur); toast('示例数据已载入');
+function wipe(){
+  if(!confirm('确认清空全部记录？此操作不可恢复，建议先导出备份。')) return;
+  if(!confirm('再确认一次：所有盘前计划和复盘都会删除。')) return;
+  DB = {version:1, days:{}, settings:{}};
+  persist(); renderCal(); renderSetting(); toast('已清空');
 }
 
-/* ---------------- Modal ---------------- */
-function openModal(){ $('mask').classList.add('show'); }
-function closeModal(){ $('mask').classList.remove('show'); editCtx=null; }
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
-
-/* =========================================================
-   行情数据（腾讯公开接口，支持跨域，无需密钥）
-   https://qt.gtimg.cn/q=sh000001,sz399006
-   字段以 ~ 分隔：
-     [1]名称 [2]代码 [3]当前价 [4]昨收 [5]今开 [6]成交量(手)
-     [30]时间 [31]涨跌额 [32]涨跌幅% [33]最高 [34]最低 [37]成交额(万)
-   ========================================================= */
-const QT_BASE = 'https://qt.gtimg.cn/q=';
-
-// 指数代码
-const IDX = {
-  sh:  'sh000001',   // 上证指数
-  cyb: 'sz399006',   // 创业板指
-  sz:  'sz399001',   // 深证成指（同时用于取深市成交额）
-  hs300:'sh000300',  // 沪深300（股指期货 IF 标的）
-  zz500:'sh000905',  // 中证500（IC 标的）
-  zz1000:'sh000852', // 中证1000（IM 标的）
-};
-
-/* 代码归一化：600000 / 000001 / 300001 / sh600000 / SZ000001 → sh600000 */
-function normCode(code){
-  let c = String(code||'').trim().toLowerCase().replace(/\s/g,'');
-  if(!c) return '';
-  c = c.replace(/^(sh|sz|bj)/, m=>m);
-  if(/^(sh|sz|bj)\d{6}$/.test(c)) return c;
-  const d = c.replace(/\D/g,'');
-  if(d.length !== 6) return '';
-  // 6开头=沪, 0/3开头=深, 4/8开头=北交所
-  if(/^[65]/.test(d)) return 'sh'+d;
-  if(/^[013]/.test(d)) return 'sz'+d;   // 含深市ETF 15/16/18 开头
-  if(/^[48]/.test(d)) return 'bj'+d;
-  return '';
-}
-
-/* 请求行情：腾讯接口返回 GBK，用 <script> 标签注入方式绕过编码限制 */
-function fetchQuoteRaw(codes){
-  return new Promise((resolve, reject)=>{
-    if(!codes.length) return resolve({});
-    const cbName = '__qt_' + Date.now() + Math.floor(Math.random()*1000);
-    const script = document.createElement('script');
-    const cleanup = ()=>{
-      try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
-      if(script.parentNode) script.parentNode.removeChild(script);
-      clearTimeout(timer);
-    };
-    const timer = setTimeout(()=>{ cleanup(); reject(new Error('请求超时')); }, 12000);
-
-    // 接口本身不是 JSONP，但可赋值式：v_sh000001="...";
-    // 用 script 标签加载后读取全局变量 v_xxx
-    const names = codes.map(c=>'v_'+c);
-    script.onload = ()=>{
-      const out = {};
-      names.forEach((n,i)=>{
-        const raw = window[n];
-        if(raw) out[codes[i]] = raw;
-      });
-      // 清理全局变量
-      names.forEach(n=>{ try{ delete window[n]; }catch(e){ window[n]=undefined; } });
-      cleanup();
-      resolve(out);
-    };
-    script.onerror = ()=>{ cleanup(); reject(new Error('网络请求失败')); };
-    script.charset = 'gbk';
-    script.src = QT_BASE + codes.join(',') + '&_=' + Date.now();
-    document.head.appendChild(script);
-  });
-}
-
-/* 解析单条行情字符串 */
-function parseQuote(str){
-  const f = String(str).split('~');
-  if(f.length < 35) return null;
-  return {
-    name: f[1],
-    code: f[2],
-    price: num(f[3]),
-    prevClose: num(f[4]),
-    open: num(f[5]),
-    time: f[30],
-    change: num(f[31]),
-    changePct: num(f[32]),
-    high: num(f[33]),
-    low: num(f[34]),
-    amount: num(f[37]),   // 万元
-  };
-}
-
-/* 抓取指数行情并填充复盘页 */
-async function fetchMarket(verbose){
-  const out = verbose ? $('quoteTestOut') : null;
-  if(out) out.textContent = '正在抓取…';
-  try{
-    const codes = [IDX.sh, IDX.cyb, IDX.sz, IDX.hs300, IDX.zz500, IDX.zz1000];
-    const raw = await fetchQuoteRaw(codes);
-    const sh = parseQuote(raw[IDX.sh]);
-    const cyb = parseQuote(raw[IDX.cyb]);
-    const sz = parseQuote(raw[IDX.sz]);
-    const hs300 = parseQuote(raw[IDX.hs300]);
-    const zz500 = parseQuote(raw[IDX.zz500]);
-    const zz1000 = parseQuote(raw[IDX.zz1000]);
-    if(!sh || !cyb) throw new Error('未获取到指数数据');
-
-    // 两市成交额 = 沪市 + 深市（万元 → 亿元）
-    const amtYi = sz ? (sh.amount + sz.amount) / 10000 : sh.amount/10000;
-
-    // 填充（仅填充当前复盘日期的表单）
-    $('r_sh').value  = sh.changePct.toFixed(2);
-    $('r_cyb').value = cyb.changePct.toFixed(2);
-    if(sz) $('r_sz').value = sz.changePct.toFixed(2);
-    $('r_amt').value = amtYi.toFixed(0);
-
-    // 同步存进当日复盘，避免忘记保存
-    const d = $('r_date').value || todayStr();
-    if(!DB.reviews[d]) DB.reviews[d] = {date:d, checks:[]};
-    Object.assign(DB.reviews[d], {
-      sh: $('r_sh').value, cyb: $('r_cyb').value, sz: $('r_sz').value, amt: $('r_amt').value,
-    });
-    save();
-
-    const t = sh.time ? sh.time.slice(8,10)+':'+sh.time.slice(10,12) : '';
-    const futIdx = [hs300&&`沪深300 ${hs300.changePct.toFixed(2)}%`, zz500&&`中证500 ${zz500.changePct.toFixed(2)}%`, zz1000&&`中证1000 ${zz1000.changePct.toFixed(2)}%`].filter(Boolean).join(' · ');
-    const msg = `上证 ${sh.changePct.toFixed(2)}% · 创业板指 ${cyb.changePct.toFixed(2)}% · 两市 ${amtYi.toFixed(0)} 亿${t?' · '+t:''}`;
-    if(verbose){
-      out.innerHTML = `✓ 抓取成功（${t}）<br>上证指数 ${sh.price.toFixed(2)}　<b class="${cls(sh.changePct)}">${pct(sh.changePct)}</b><br>`
-        + `创业板指 ${cyb.price.toFixed(2)}　<b class="${cls(cyb.changePct)}">${pct(cyb.changePct)}</b><br>`
-        + (sz?`深证成指 ${sz.price.toFixed(2)}　<b class="${cls(sz.changePct)}">${pct(sz.changePct)}</b><br>`:'')
-        + `两市成交额 ${amtYi.toFixed(0)} 亿元<br>`
-        + (hs300?`沪深300 ${hs300.price.toFixed(2)}　<b class="${cls(hs300.changePct)}">${pct(hs300.changePct)}</b><br>`:'')
-        + (zz500?`中证500 ${zz500.price.toFixed(2)}　<b class="${cls(zz500.changePct)}">${pct(zz500.changePct)}</b><br>`:'')
-        + (zz1000?`中证1000 ${zz1000.price.toFixed(2)}　<b class="${cls(zz1000.changePct)}">${pct(zz1000.changePct)}</b><br>`:'')
-        + `<span style="color:var(--txt3);font-size:11.5px">沪深300 / 中证500 / 中证1000 分别为 IF / IC / IM 股指期货标的</span>`;
-    }else{
-      const st = $('mktStatus');
-      if(st) st.innerHTML = `<span class="ok-t">✓</span> ${esc(msg)}`;
-    }
-    if(App.cur !== 'post' || verbose) toast('行情已更新');
-    if(App.cur === 'post' && !verbose) renderPost();
-    if(App.cur === 'data' && verbose) { /* keep */ }
-    return true;
-  }catch(e){
-    const msg = '抓取失败：' + e.message + (location.protocol==='file:' ? '（若网络受限可手动填写）' : '');
-    if(verbose){ out.textContent = '✗ ' + msg; }
-    else{ const st = $('mktStatus'); if(st) st.innerHTML = `<span style="color:var(--up)">✗</span> ${esc(e.message)}`; }
-    toast(msg);
-    return false;
-  }
-}
-
-/* 刷新持仓 / 关注标的现价 */
-async function refreshQuotes(scope){
-  const targets = [];
-  const collect = (item)=>{
-    if(isFut(itypeOf(item))) return;   // 期货无公开行情接口，手动填价
-    const c = normCode(item.code); if(c) targets.push(c);
-  };
-  if(scope === 'hold' || scope === 'all') DB.holdings.forEach(collect);
-  if(scope === 'watch' || scope === 'all') DB.watches.forEach(collect);
-  const codes = [...new Set(targets)];
-  const statusEl = scope==='hold' ? $('holdQuoteStatus') : (scope==='watch' ? $('watchQuoteStatus') : $('quoteTestOut'));
-  if(!codes.length){
-    const onlyFut = (scope==='hold'?DB.holdings:scope==='watch'?DB.watches:DB.holdings.concat(DB.watches)).some(x=>isFut(itypeOf(x)));
-    if(statusEl) statusEl.textContent = onlyFut ? '期货无自动行情，请按行情软件手动填价' : '没有可刷新的代码';
-    toast(onlyFut ? '期货现价请手动填写' : '请先填写股票/ETF代码');
-    return;
-  }
-  if(statusEl) statusEl.textContent = '正在刷新…';
-  try{
-    // 分批，避免 URL 过长
-    const map = {};
-    for(let i=0;i<codes.length;i+=40){
-      const batch = codes.slice(i, i+40);
-      const raw = await fetchQuoteRaw(batch);
-      batch.forEach(c=>{ const q = parseQuote(raw[c]); if(q) map[c] = q; });
-    }
-    let hit = 0, miss = 0, futSkip = 0;
-    const upd = (item)=>{
-      if(isFut(itypeOf(item))){ futSkip++; return; }
-      const c = normCode(item.code);
-      if(!c){ if(String(item.code||'').trim()) miss++; return; }
-      const q = map[c];
-      if(q && q.price){ item.price = q.price.toFixed(2); item.changePct = q.changePct; hit++; }
-      else miss++;
-    };
-    if(scope==='hold' || scope==='all') DB.holdings.forEach(upd);
-    if(scope==='watch' || scope==='all') DB.watches.forEach(upd);
-    save();
-    const msg = `✓ 已更新 ${hit} 只${miss?'，'+miss+' 只未取到':''}${futSkip?'，'+futSkip+' 个期货请手动填价':''}`;
-    if(statusEl) statusEl.textContent = msg;
-    if(App.cur==='hold') renderHold();
-    if(App.cur==='pre') renderPre();
-    if(App.cur==='data') renderData();
-    toast('现价已刷新');
-  }catch(e){
-    if(statusEl) statusEl.textContent = '✗ ' + e.message;
-    toast('刷新失败：' + e.message);
-  }
-}
-
-/* 自动抓取（页面打开时，当日尚无复盘数据才抓） */
-function autoFetch(){
-  if(DB.settings?.qEnabled === 'off') return;
-  if(DB.settings?.qAuto === 'off') return;
-  const d = todayStr();
-  const r = DB.reviews[d];
-  const hasData = r && (r.sh || r.amt);
-  // 已填过就不覆盖
-  if(hasData) return;
-  setTimeout(()=>{ fetchMarket(false); }, 600);
-}
-
-
-/* =========================================================
-   PWA：安装 / Service Worker / 备份提醒
-   ========================================================= */
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e=>{
-  e.preventDefault();
-  deferredPrompt = e;
-  const b = $('installBtn');
-  if(b) b.style.display = 'grid';
-});
-window.addEventListener('appinstalled', ()=>{
-  deferredPrompt = null;
-  const b = $('installBtn');
-  if(b) b.style.display = 'none';
-  toast('已安装到桌面');
-});
-function doInstall(){
-  if(!deferredPrompt){ toast('请用浏览器菜单中的「安装应用 / 添加到主屏幕」'); return; }
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(()=>{ deferredPrompt = null; const b=$('installBtn'); if(b) b.style.display='none'; });
-}
-/* SW 仅在 http(s) 下注册；file:// 打开时静默跳过 */
-if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{ /* sw.js 不存在时忽略 */ });
-  });
-}
-
-/* ---------- 备份提醒 ---------- */
-const BACKUP_INTERVAL = 7;   // 天
-function daysSinceBackup(){
-  const last = DB.settings && DB.settings.lastBackupAt;
-  if(!last) return null;
-  return Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
-}
-function checkBackupReminder(){
-  const hasData = DB.trades.length + Object.keys(DB.reviews).length + DB.holdings.length + DB.watches.length > 0;
-  if(!hasData) return;
-  const snooze = DB.settings && DB.settings.backupSnoozeUntil;
-  if(snooze && new Date(snooze).getTime() > Date.now()) return;
-  const d = daysSinceBackup();
-  if(d === null || d >= BACKUP_INTERVAL){
-    const el = $('backupBanner');
-    if(el) el.style.display = 'block';
-    const txt = $('backupBannerText');
-    if(txt) txt.innerHTML = d === null
-      ? '<b>数据安全提醒</b>：你还没有备份过。数据只存在本机，建议导出一份 JSON。'
-      : `<b>数据安全提醒</b>：距离上次备份已 <b>${d}</b> 天，建议导出一份 JSON。`;
-  }
-}
-function hideBackupBanner(days){
-  const el = $('backupBanner');
-  if(el) el.style.display = 'none';
-  if(days){
-    DB.settings = DB.settings || {};
-    DB.settings.backupSnoozeUntil = new Date(Date.now() + days*86400000).toISOString();
-    save();
-  }
-}
-/* 安卓：调起系统分享面板，可直接存到文件/微信/网盘 */
-async function shareBackup(){
-  const payload = {
-    app: 'trade-journal', version: DB.version,
-    exportedAt: new Date().toISOString(),
-    data: DB,
-  };
-  const filename = `交易复盘备份_${todayStr()}.json`;
-  try{
-    const file = new File([JSON.stringify(payload,null,2)], filename, {type:'application/json'});
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:'交易复盘备份'});
-      markBackedUp();
-      return;
-    }
-  }catch(e){
-    if(e && e.name === 'AbortError') return;   // 用户取消
-  }
-  exportData();   // 降级为下载
-}
-function markBackedUp(){
-  DB.settings = DB.settings || {};
-  DB.settings.lastBackupAt = new Date().toISOString();
-  save();
-  const el = $('backupBanner');
-  if(el) el.style.display = 'none';
-}
-
+/* ============================================================
+   启动
+   ============================================================ */
 function init(){
   load();
-  $('r_date').value = todayStr();
-  $('r_date').addEventListener('change', renderPost);
-  ['s_from','s_to'].forEach(id=>$(id).addEventListener('change', renderStats));
-  $('s_itype').addEventListener('click', e=>{
-    const c = e.target.closest('.chip'); if(!c) return;
-    statType = c.dataset.v;
-    $('s_itype').querySelectorAll('.chip').forEach(x=>x.classList.toggle('on', x===c));
-    renderStats();
-  });
-  chipInit('p_market', false);
-  chipInit('p_cycle', false);
-  App.go('pre');
-  autoFetch();
-  checkBackupReminder();
+  bindEvents();
+  renderCal();
+  show('vCal');
+
+  // PWA
+  if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+  // 深链
+  const h = location.hash;
+  if(h.startsWith('#/d/')) openDay(h.slice(4));
 }
 init();
 </script>
